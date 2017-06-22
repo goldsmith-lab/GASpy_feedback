@@ -297,7 +297,7 @@ class GASPredict(object):
 
         # Post-process the rows; just read the method docstring for more details
         rows = self._post_process(rows,
-                                  prioritization=random,
+                                  prioritization='random'
                                   max_predictions=max_predictions)
 
         # Create a parameters_list from our rows list.
