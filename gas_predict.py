@@ -51,6 +51,9 @@ class GASPredict(object):
                             'pre_processors' key should contain a dictionary whose keys are the
                                 model features (i.e., the ase-db row attributes) and whose values
                                 are the already-fitted pre-processors (e.g., LabelBinarizer)
+                            Note that the user may provide "None" or "False" for this argument,
+                            as well. This should be done if the user wants to call the "anything"
+                            method.
             adsorbate       A string indicating the adsorbate that you want to make a prediction
                             for.
             calc_settings   The calculation settings that we want to use. If we are using
@@ -85,7 +88,7 @@ class GASPredict(object):
                 # Create `relaxed_systems_dict`, whose keys are the hashes of the systems
                 # we have relaxed and stored in the local energy DB
                 relaxed_systems = np.unique(map(self._hash_row,
-                                                 [(row, adsorbate) for row in enrgs_rows]))
+                                                [(row, adsorbate) for row in enrgs_rows]))
                 relaxed_systems_dict = {}
                 for relaxed_system in relaxed_systems:
                     relaxed_systems_dict[relaxed_system] = None
@@ -93,20 +96,25 @@ class GASPredict(object):
                 self.rows = [site_row for site_row in sites_rows
                              if self._hash_row((site_row, adsorbate)) not in relaxed_systems_dict]
 
-        # Unpack the pickled model
-        pkl = pickle.load(open(pkl, 'r'))
-        self.model = pkl['model']
-        self.pre_processors = pkl['pre_processors']
+        # We put a conditional before we start working with the pickled model. This allows the
+        # user to go straight for the "anything" method without needing to find a dummy model.
+        if pkl:
+            # Unpack the pickled model
+            pkl = pickle.load(open(pkl, 'r'))
+            self.model = pkl['model']
+            self.pre_processors = pkl['pre_processors']
 
-        # Figure out the model type and assign the correct method to perform predictions
-        if isinstance(self.model, type(LinearRegression())):
-            self.predict = self._sk_predict
-        elif isinstance(self.model, type(GradientBoostingRegressor())):
-            self.predict = self._sk_predict
-        elif isinstance(self.model, dict):
-            self.predict = self._ala_predict
+            # Figure out the model type and assign the correct method to perform predictions
+            if isinstance(self.model, type(LinearRegression())):
+                self.predict = self._sk_predict
+            elif isinstance(self.model, type(GradientBoostingRegressor())):
+                self.predict = self._sk_predict
+            elif isinstance(self.model, dict):
+                self.predict = self._ala_predict
+            else:
+                raise Exception('We have not yet established how to deal with this type of model')
         else:
-            raise Exception('We have not yet established how to deal with this type of model')
+            print('No model provided. Only the "anything" method will work')
 
 
     def _hash_row(self, tup):
@@ -273,6 +281,43 @@ class GASPredict(object):
         return self.model['f(model)'](inputs)
 
 
+    def anything(self, max_predictions=10):
+        '''
+        Call this method if you want `max_predictions` completely random things to run.
+        Input:
+            max_predictions     The number of random things you want to run.
+        Outut:
+            parameters_list     A list of `parameters` dictionaries that we may pass
+                                to GASpy
+        '''
+        # We will be trimming the `self.rows` object. But in case the user wants to use
+        # the same class instance to call a different method, we create a local copy of
+        # the rows object to trim and use.
+        rows = copy.deepcopy(self.rows)
+
+        # Post-process the rows; just read the method docstring for more details
+        rows = self._post_process(rows,
+                                  prioritization=random,
+                                  max_predictions=max_predictions)
+
+        # Create a parameters_list from our rows list.
+        parameters_list = []
+        for row in rows:
+            parameters_list.append({'bulk': dpar_bulk(row.mpid,
+                                                      settings=self.calc_settings),
+                                    'gas': dpar_gas(self.adsorbate,
+                                                    settings=self.calc_settings),
+                                    'slab': dpar_slab(miller=row.miller,
+                                                      top=row.top,
+                                                      shift=row.shift,
+                                                      settings=self.calc_settings),
+                                    'adsorption': dpar_ads(adsorbate=self.adsorbate,
+                                                           adsorption_site=row.adsorption_site,
+                                                           settings=self.calc_settings)})
+        # We're done!
+        return parameters_list
+
+
     def energy_fr_coordcount_ads(self, prioritization='gaussian', max_predictions=0,
                                  energy_min=-0.7, energy_max=-0.5, energy_target=-0.6):
         '''
@@ -308,15 +353,15 @@ class GASPredict(object):
         # numpy is stupid and we had to reshape/list things that are totally not intuitive.
         # Just go with it. Don't worry about it.
         p_coords = np.array([np.sum(lb_coord.transform(coord.split('-')), axis=0)
-                            for coord in [row.coordination for row in rows]])
+                             for coord in [row.coordination for row in rows]])
         p_ads = lb_ads.transform([self.adsorbate])[0]
         p_inputs = np.array([np.hstack((p_coord, p_ads)) for p_coord in p_coords])
         # Predict the adsorption energies of our rows, and then trim any that lie outside
         # the specified range. Note that we trim both the rows and their corresponding energies
         energies = self.predict(p_inputs)
         energy_mask = (-(energy_min < np.array(energies))-(np.array(energies) < energy_max))
-        rows = [rows[i] for i in np.where(energy_mask == True)[0].tolist()]
-        energies = [energies[i] for i in np.where(energy_mask == True)[0].tolist()]
+        rows = [rows[i] for i in np.where(energy_mask)[0].tolist()]
+        energies = [energies[i] for i in np.where(energy_mask)[0].tolist()]
 
         # Post-process the rows; just read the method docstring for more details
         rows = self._post_process(rows,
@@ -338,8 +383,6 @@ class GASPredict(object):
                                                       settings=self.calc_settings),
                                     'adsorption': dpar_ads(adsorbate=self.adsorbate,
                                                            adsorption_site=row.adsorption_site,
-                                                           settings=self.calc_settings)
-                                   })
-
+                                                           settings=self.calc_settings)})
         # We're done!
         return parameters_list
