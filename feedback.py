@@ -7,6 +7,7 @@ to relax next, and then it performs the relaxation.
 __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
 # Since this is in a submodule, we add the parent folder to the python path
+import pdb
 import sys
 sys.path.append("..")
 from gas_predict import GASPredict
@@ -52,7 +53,6 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     (and re-pickling the new model).
     '''
     xc = luigi.Parameter(XC)
-    ads = luigi.Parameter(ADS)
     max_processes = luigi.IntParameter(MAX_DUMP)
     write_db = luigi.BoolParameter(WRITE_DB)
     model_location = luigi.Parameter(MODEL_LOC)
@@ -77,7 +77,7 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
         '''
         # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
         # max_predictions is actually max_predictions_per_adsorbate
-        for ads in self.ads:
+        for ads in ADS:
             gas_predict = GASPredict(pkl=self.model_location,
                                      adsorbate=ads,
                                      calc_setting=self.xc)
