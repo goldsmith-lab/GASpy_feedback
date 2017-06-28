@@ -65,9 +65,9 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
         '''
         # This write_db thing here is here really only a placeholder for debugging.
         if self.write_db:
-            yield UpdateAllDB(writeDB=True, max_processes=self.max_processes)
+            return UpdateAllDB(writeDB=True, max_processes=self.max_processes)
         else:
-            yield UpdateAllDB(writeDB=False, max_processes=self.max_processes)
+            return UpdateAllDB(writeDB=False, max_processes=self.max_processes)
 
 
     def run(self):
