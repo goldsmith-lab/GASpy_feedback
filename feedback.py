@@ -49,8 +49,8 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     above.
 
     Note that the pickled models should probably be updated as well. But instead of re-running
-    the regression here, our current setup has use using Cron to periodically re-run the regression
-    (and re-pickling the new model).
+    the regression here, our current setup has use using Cron to periodically re-run the
+    regression (and re-pickling the new model).
     '''
     xc = luigi.Parameter(XC)
     max_processes = luigi.IntParameter(MAX_DUMP)
@@ -78,8 +78,8 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
         # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
         # max_predictions is actually max_predictions_per_adsorbate
         for ads in ADS:
-            gas_predict = GASPredict(pkl=self.model_location,
-                                     adsorbate=ads,
+            gas_predict = GASPredict(adsorbate=ads,
+                                     pkl=self.model_location,
                                      calc_setting=self.xc)
             parameters_list = gas_predict.energy_fr_coordcount_ads(max_predictions=self.max_pred)
             for parameters in parameters_list:

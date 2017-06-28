@@ -26,12 +26,12 @@ sys.path.append('../GASpy_regressions')
 
 
 # The location of the Local database. Do not include the name of the file.
-DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
-#DB_LOC = '/Users/Ktran/Nerd/GASpy'                  # Local
+#DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
+DB_LOC = '/Users/KTran/Nerd/GASpy'                  # Local
 
 
 class GASPredict(object):
-    def __init__(self, pkl, adsorbate, calc_settings='beef-vdw'):
+    def __init__(self, adsorbate, pkl=None, calc_settings='beef-vdw'):
         '''
         Here, we open the pickle. And then depending on the model type, we assign different
         methods to use for predicting data. For reference:  These models are created by
@@ -77,13 +77,13 @@ class GASPredict(object):
                 elif calc_settings == 'rpbe':
                     enrgs_rows = [row for row in enrgs_db.select() if row.gga == 'RP']
                 else:
-                    raise Exception('Unknown calculations calculation settings')
+                    raise Exception('Unknown calculation settings')
                 '''
-                Both databases are large and take a long time to filter. The best way to
-                filter them (that we can think of) is to hash the important features of
-                each system (see the _hash_row method), and then store these hashed
-                system into dictionary keys, which can be searched/parsed quickly.
-                We can then check hashes against each other in this dictionary.
+                Both databases are large and take a long time to filter. A good way to
+                filter them is to hash the important features of each system (see the
+                _hash_row method), and then store these hashed system into dictionary keys,
+                which can be searched/parsed quickly. We can then check hashes against
+                each other in this dictionary.
                 '''
                 # Create `relaxed_systems_dict`, whose keys are the hashes of the systems
                 # we have relaxed and stored in the local energy DB
@@ -114,7 +114,7 @@ class GASPredict(object):
             else:
                 raise Exception('We have not yet established how to deal with this type of model')
         else:
-            print('No model provided. Only the "anything" method will work')
+            print('No model provided. Only the "anything" method will work.')
 
 
     def _hash_row(self, tup):
