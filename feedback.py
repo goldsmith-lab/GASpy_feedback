@@ -72,8 +72,8 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
 
     def run(self):
         '''
-        Here, we use the GASPredict class to identify the list of parameters that we can use to run
-        the next set of relaxations.
+        Here, we use the GASPredict class to identify the list of parameters that we can use
+        to run the next set of relaxations.
         '''
         # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
         # max_predictions is actually max_predictions_per_adsorbate

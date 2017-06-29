@@ -137,7 +137,7 @@ class GASPredict(object):
         mpid = row.mpid
         shift = row.shift
 
-        # Use EAFP (Google it) to unpack informaion from either the energy database or the site
+        # Use EAFP (Google it) to unpack information from either the energy database or the site
         # database (respectively), since they have slightly different attribute characteristics
         try:
             adsorbate = row.adsorbate
@@ -152,7 +152,8 @@ class GASPredict(object):
             neighborcoord = row.neighborcoord
             nextnearestcoordination = row.nextnearestcoordination
 
-        # Put the surface characteristics together into one string, `system` so that we can hash it
+        # Put the surface characteristics together into one string, `system` so that we can
+        # hash it
         system = ''
         for item in [adsorbate, mpid, miller, shift,
                      coordination, neighborcoord, nextnearestcoordination]:
@@ -186,7 +187,7 @@ class GASPredict(object):
         Output:
             rows    The rearrange version of the supplied list
         '''
-        def _trim(rows, max_predictions):
+        def __trim(rows, max_predictions):
             '''
             Trim the rows down according to this method's `max_predictions` argument. Since
             we trim the end of the list, we are implicitly prioritizing the rows in the
@@ -199,14 +200,19 @@ class GASPredict(object):
                 rows = rows[:max_predictions]
             return rows
 
-        # If we have less choices than the max number of predictions, then just give it back...
         if len(rows) <= max_predictions:
+            '''
+            If we have less choices than the max number of predictions, then
+            just give it back...
+            '''
             return rows
 
         elif prioritization == 'targeted':
-            # A 'targeted' prioritization means that we are favoring systems that predict
-            # values closer to our `target`. And if the user chooses `targeted`, then they
-            # had better supply values
+            '''
+            A 'targeted' prioritization means that we are favoring systems that predict
+            values closer to our `target`.
+            '''
+            # And if the user chooses `targeted`, then they had better supply values
             if not values:
                 raise Exception('Called the "targeted" prioritization without specifying values')
             # If the target was not specified, then just put it in the center of the range.
@@ -218,17 +224,21 @@ class GASPredict(object):
             # from `target`. We use it to sort/prioritize the rows.
             sort_inds = sorted(range(len(values)), key=lambda i: abs(values[i]-target))
             rows = [rows[i] for i in sort_inds]
-            return _trim(rows, max_predictions)
+            return __trim(rows, max_predictions)
 
         elif prioritization == 'random':
-            # A 'random' prioritization means that we're just going to pick things at random.
+            '''
+            A 'random' prioritization means that we're just going to pick things at random.
+            '''
             random.shuffle(rows)
-            return _trim(rows, max_predictions)
+            return __trim(rows, max_predictions)
 
         elif prioritization == 'gaussian':
-            # Here, we create a gaussian probability distribution centered at `target`. Then
-            # we choose points according to the probability distribution so that we get a lot
-            # of things near the target and fewer thnigs the further we go from the target.
+            '''
+            Here, we create a gaussian probability distribution centered at `target`. Then
+            we choose points according to the probability distribution so that we get a lot
+            of things near the target and fewer thnigs the further we go from the target.
+            '''
             # And if the user chooses `gaussian`, then they had better supply values.
             if not values:
                 raise Exception('Called the "gaussian" prioritization without specifying values')
@@ -241,8 +251,8 @@ class GASPredict(object):
             dist = sp.stats.norm(target, (max(values)-min(values))/n_sigmas)
             pdf_eval = map(dist.pdf, values)
             # We use np.random.choice to do the choosing. But this function needs `p`, which
-            # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; then
-            # we call it p.
+            # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; rename
+            # it p, and call np.random.choice
             p = (pdf_eval/sum(pdf_eval)).tolist()
             return np.random.choice(rows, size=max_predictions, replace=False, p=p)
 
@@ -283,7 +293,9 @@ class GASPredict(object):
 
     def anything(self, max_predictions=10):
         '''
-        Call this method if you want `max_predictions` completely random things to run.
+        Call this method if you want `max_predictions` completely random things use in
+        the next relaxation.
+
         Input:
             max_predictions     The number of random things you want to run.
         Outut:
