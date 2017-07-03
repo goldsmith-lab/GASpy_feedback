@@ -35,7 +35,7 @@ WRITE_DB = True
 
 # The location of the pickled model we want to use for the feedback loop. Include the
 # name of the file, as well.
-MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GBE.pkl'
+MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GP.pkl'
 
 # The maximum number of predictions that we want to send through the feedback loop. Note that
 # the total number of submissions will be MAX_PRED*len(ADS)
