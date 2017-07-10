@@ -39,7 +39,7 @@ ADS = ['OOH']
 MAX_DUMP = 0
 WRITE_DB = True
 #MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GP.pkl'
-MODEL_LOC = None
+MODEL_LOC = ''
 PRIORITY = 'anything'
 MAX_PRED = 10
 
@@ -60,19 +60,21 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     model_location = luigi.Parameter(MODEL_LOC)
     max_pred = luigi.IntParameter(MAX_PRED)
 
+
+    #def requires(self):
+        #'''
+        #We need to update the Aux and Local databases before predicting the next set of
+        #systems to run.
+        #'''
+        ## This write_db thing here is here really only a placeholder for debugging.
+        #if self.write_db:
+            #yield UpdateAllDB(writeDB=True, max_processes=self.max_processes)
+        #else:
+            #yield UpdateAllDB(writeDB=False, max_processes=self.max_processes)
+#
+#
+    #def run(self):
     def requires(self):
-        '''
-        We need to update the Aux and Local databases before predicting the next set of
-        systems to run.
-        '''
-        # This write_db thing here is here really only a placeholder for debugging.
-        if self.write_db:
-            yield UpdateAllDB(writeDB=True, max_processes=self.max_processes)
-        else:
-            yield UpdateAllDB(writeDB=False, max_processes=self.max_processes)
-
-
-    def run(self):
         '''
         Here, we use the GASPredict class to identify the list of parameters that we can use
         to run the next set of relaxations.
