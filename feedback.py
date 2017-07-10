@@ -21,8 +21,8 @@ DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
 #DB_LOC = '/Users/Ktran/Nerd/GASpy'                  # Local
 
 # Exchange correlational
-#XC = 'rpbe'
-XC = 'beef-vdw'
+XC = 'rpbe'
+#XC = 'beef-vdw'
 
 # The adsorbate(s) we want to look at
 ADS = ['OOH']
@@ -85,6 +85,6 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
                                      calc_settings=self.xc)
-            parameters_list = gas_predict[PRIORITY](max_predictions=self.max_pred)
+            parameters_list = getattr(gas_predict, PRIORITY)(max_predictions=self.max_pred)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
