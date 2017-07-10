@@ -48,9 +48,8 @@ class GASPredict(object):
                             'pre_processors' key should contain a dictionary whose keys are the
                                 model features (i.e., the ase-db row attributes) and whose values
                                 are the already-fitted pre-processors (e.g., LabelBinarizer)
-                            Note that the user may provide "None" or "False" for this argument,
-                            as well. This should be done if the user wants to call the "anything"
-                            method.
+                            Note that the user may provide "" for this argument, as well. This
+                            should be done if the user wants to call the "anything" method.
             adsorbate       A string indicating the adsorbate that you want to make a prediction
                             for.
             calc_settings   The calculation settings that we want to use. If we are using
