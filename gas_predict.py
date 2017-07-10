@@ -23,8 +23,8 @@ sys.path.append('../GASpy_regressions')
 
 
 # The location of the Local database. Do not include the name of the file.
-#DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
-DB_LOC = '/Users/KTran/Nerd/GASpy'                  # Local
+DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
+#DB_LOC = '/Users/KTran/Nerd/GASpy'                  # Local
 
 
 class GASPredict(object):
