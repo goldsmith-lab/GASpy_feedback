@@ -1,2 +1,5 @@
 *.pyc
+*.traj
+*.out
+queue*.sh
 .ipynb_checkpoints/
