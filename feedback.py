@@ -35,7 +35,11 @@ WRITE_DB = True
 
 # The location of the pickled model we want to use for the feedback loop. Include the
 # name of the file, as well.
-MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GP.pkl'
+#MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GP.pkl'
+MODEL_LOC = None
+
+# The prioritization (i.e., method of choosing the next relaxations)
+PRIORITY = 'anything'
 
 # The maximum number of predictions that we want to send through the feedback loop. Note that
 # the total number of submissions will be MAX_PRED*len(ADS)
@@ -81,6 +85,6 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
                                      calc_settings=self.xc)
-            parameters_list = gas_predict.energy_fr_coordcount_ads(max_predictions=self.max_pred)
+            parameters_list = gas_predict[PRIORITY](max_predictions=self.max_pred)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
