@@ -9,10 +9,10 @@ __email__ = '<ktran@andrew.cmu.edu>'
 # Since this is in a submodule, we add the parent folder to the python path
 import pdb
 import sys
-sys.path.append("..")
 from gas_predict import GASPredict
-from gaspy_toolbox import UpdateAllDB
-from gaspy_toolbox import FingerprintRelaxedAdslab
+sys.path.insert(0, '../')
+from tasks import UpdateAllDB
+from tasks import FingerprintRelaxedAdslab
 import luigi
 
 
@@ -25,7 +25,7 @@ DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
 XC = 'beef-vdw'
 
 # The adsorbate(s) we want to look at
-ADS = ['CO']
+ADS = ['OOH']
 
 # Maximum number of rows to dump from the Aux DB to the Local DBs. Set it to zero for no limit.
 MAX_DUMP = 0
@@ -65,9 +65,9 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
         '''
         # This write_db thing here is here really only a placeholder for debugging.
         if self.write_db:
-            return UpdateAllDB(writeDB=True, max_processes=self.max_processes)
+            yield UpdateAllDB(writeDB=True, max_processes=self.max_processes)
         else:
-            return UpdateAllDB(writeDB=False, max_processes=self.max_processes)
+            yield UpdateAllDB(writeDB=False, max_processes=self.max_processes)
 
 
     def run(self):

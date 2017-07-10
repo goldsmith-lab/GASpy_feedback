@@ -18,10 +18,7 @@ from ase.db import connect
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import GradientBoostingRegressor
 sys.path.append('..')
-from gaspy_toolbox import default_parameter_bulk as dpar_bulk
-from gaspy_toolbox import default_parameter_slab as dpar_slab
-from gaspy_toolbox import default_parameter_gas as dpar_gas
-from gaspy_toolbox import default_parameter_adsorption as dpar_ads
+from gaspy import defaults
 sys.path.append('../GASpy_regressions')
 
 
@@ -315,15 +312,15 @@ class GASPredict(object):
         # Create a parameters_list from our rows list.
         parameters_list = []
         for row in rows:
-            parameters_list.append({'bulk': dpar_bulk(row.mpid,
+            parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
                                                       settings=self.calc_settings),
-                                    'gas': dpar_gas(self.adsorbate,
+                                    'gas': defaults.gas_parameters(self.adsorbate,
                                                     settings=self.calc_settings),
-                                    'slab': dpar_slab(miller=row.miller,
+                                    'slab': defaults.slab_parameters(miller=row.miller,
                                                       top=row.top,
                                                       shift=row.shift,
                                                       settings=self.calc_settings),
-                                    'adsorption': dpar_ads(adsorbate=self.adsorbate,
+                                    'adsorption': defaults.adsorption_parameters(adsorbate=self.adsorbate,
                                                            adsorption_site=row.adsorption_site,
                                                            settings=self.calc_settings)})
         # We're done!
@@ -385,16 +382,16 @@ class GASPredict(object):
         # Create a parameters_list from our rows list.
         parameters_list = []
         for row in rows:
-            parameters_list.append({'bulk': dpar_bulk(row.mpid,
-                                                      settings=self.calc_settings),
-                                    'gas': dpar_gas(self.adsorbate,
-                                                    settings=self.calc_settings),
-                                    'slab': dpar_slab(miller=row.miller,
-                                                      top=row.top,
-                                                      shift=row.shift,
-                                                      settings=self.calc_settings),
-                                    'adsorption': dpar_ads(adsorbate=self.adsorbate,
-                                                           adsorption_site=row.adsorption_site,
-                                                           settings=self.calc_settings)})
+            parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
+                                                                     settings=self.calc_settings),
+                                    'gas': defaults.gas_parameters(self.adsorbate,
+                                                                   settings=self.calc_settings),
+                                    'slab': defaults.slab_parameters(miller=row.miller,
+                                                                     top=row.top,
+                                                                     shift=row.shift,
+                                                                     settings=self.calc_settings),
+                                    'adsorption': defaults.adsorption_parameters(adsorbate=self.adsorbate,
+                                                                                 adsorption_site=row.adsorption_site,
+                                                                                 settings=self.calc_settings)})
         # We're done!
         return parameters_list
