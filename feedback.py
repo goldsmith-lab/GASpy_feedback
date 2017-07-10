@@ -3,6 +3,21 @@ This script contains classes/tasks for Luigi to execute.
 
 These tasks use the `GASPredict` class in this submodule to determine what systems
 to relax next, and then it performs the relaxation.
+
+Here is a list of this script's inputs:
+    DB_LOC      Location of the Local databases. Do not include database names.
+    XC          Exchange correlational
+    ADS         The adsorbate(s) you want to look at
+    MAX_DUMP    The maximum number of rows to dump from the AuxDB to the Local DBs.
+                A setting of 0 means no limit. This is used primarily for testing.
+    WRITE_DB    Whether or not we want to dump the Aux DB to the Local energies DB.
+                ...used for testing?
+    MODEL_LOC   The location of the pickled model we want to use for the feedback
+                loop. Include the name of the file, as well.
+    PRIORITY    The prioritization (i.e., method of choosing the next relaxation).
+    MAX_PRED    The maximum number of predictions that we want to sen through the
+                feedback loop. Note that the total number of submissions will still
+                be MAX_PRED*len(ADS)
 '''
 __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
@@ -16,33 +31,16 @@ from tasks import FingerprintRelaxedAdslab
 import luigi
 
 
-# Location of the Local databases. Do not include the database names.
 DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
 #DB_LOC = '/Users/Ktran/Nerd/GASpy'                  # Local
-
-# Exchange correlational
 XC = 'rpbe'
 #XC = 'beef-vdw'
-
-# The adsorbate(s) we want to look at
 ADS = ['OOH']
-
-# Maximum number of rows to dump from the Aux DB to the Local DBs. Set it to zero for no limit.
 MAX_DUMP = 0
-
-# Whether or not we want to dump the Aux DB to the Local energies DB
 WRITE_DB = True
-
-# The location of the pickled model we want to use for the feedback loop. Include the
-# name of the file, as well.
 #MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GP.pkl'
 MODEL_LOC = None
-
-# The prioritization (i.e., method of choosing the next relaxations)
 PRIORITY = 'anything'
-
-# The maximum number of predictions that we want to send through the feedback loop. Note that
-# the total number of submissions will be MAX_PRED*len(ADS)
 MAX_PRED = 10
 
 
