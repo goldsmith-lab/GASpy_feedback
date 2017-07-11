@@ -312,16 +312,16 @@ class GASPredict(object):
         parameters_list = []
         for row in rows:
             parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
-                                                      settings=self.calc_settings),
+                                                                     settings=self.calc_settings),
                                     'gas': defaults.gas_parameters(self.adsorbate,
-                                                    settings=self.calc_settings),
-                                    'slab': defaults.slab_parameters(miller=row.miller,
-                                                      top=row.top,
-                                                      shift=row.shift,
-                                                      settings=self.calc_settings),
+                                                                   settings=self.calc_settings),
+                                    'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
+                                                                     top=row.top,
+                                                                     shift=row.shift,
+                                                                     settings=self.calc_settings),
                                     'adsorption': defaults.adsorption_parameters(adsorbate=self.adsorbate,
-                                                           adsorption_site=row.adsorption_site,
-                                                           settings=self.calc_settings)})
+                                                                                 adsorption_site=row.adsorption_site,
+                                                                                 settings=self.calc_settings)})
         # We're done!
         return parameters_list
 
@@ -385,7 +385,7 @@ class GASPredict(object):
                                                                      settings=self.calc_settings),
                                     'gas': defaults.gas_parameters(self.adsorbate,
                                                                    settings=self.calc_settings),
-                                    'slab': defaults.slab_parameters(miller=row.miller,
+                                    'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
                                                                      top=row.top,
                                                                      shift=row.shift,
                                                                      settings=self.calc_settings),
