@@ -17,6 +17,7 @@ pickle.settings['recurse'] = True     # required to pickle lambdify functions
 from ase.db import connect
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.gaussian_process import GaussianProcessRegressor
 sys.path.append('..')
 from gaspy import defaults
 sys.path.append('../GASpy_regressions')
@@ -34,12 +35,12 @@ class GASPredict(object):
         methods to use for predicting data. For reference:  These models are created by
         `regress.ipynb` in the `GASpy_regressions` submodule.
 
-        We also initialize the `self.rows` object, which will be a list of ase-db rows
+        We also initialize the `self.site_rows` object, which will be a list of ase-db rows
         (from our Local adsorption site DB) whose corresponding sites we predict will be
         good ones to relax next.
 
         All of our __init__ arguments (excluding the pkl) are used to both define how we
-        want to create our `parameters_list` objects and how we filter the `self.rows` so
+        want to create our `parameters_list` objects and how we filter the `self.site_rows` so
         that we don't try to re-submit calculations that we've already done.
 
         Input:
@@ -88,9 +89,11 @@ class GASPredict(object):
                 relaxed_systems_dict = {}
                 for relaxed_system in relaxed_systems:
                     relaxed_systems_dict[relaxed_system] = None
-                # Now initialize/filter `self.rows`
-                self.rows = [site_row for site_row in sites_rows
-                             if self._hash_row((site_row, adsorbate)) not in relaxed_systems_dict]
+                # Now initialize/filter `self.site_rows` and 'self.energy_rows`
+                self.site_rows = [site_row for site_row in sites_rows
+                                  if self._hash_row((site_row, adsorbate))
+                                  not in relaxed_systems_dict]
+                self.energy_rows = enrgs_rows
 
         # We put a conditional before we start working with the pickled model. This allows the
         # user to go straight for the "anything" method without needing to find a dummy model.
@@ -104,6 +107,8 @@ class GASPredict(object):
             if isinstance(self.model, type(LinearRegression())):
                 self.predict = self._sk_predict
             elif isinstance(self.model, type(GradientBoostingRegressor())):
+                self.predict = self._sk_predict
+            elif isinstance(self.model, type(GaussianProcessRegressor())):
                 self.predict = self._sk_predict
             elif isinstance(self.model, dict):
                 self.predict = self._ala_predict
@@ -289,7 +294,7 @@ class GASPredict(object):
 
     def anything(self, max_predictions=10):
         '''
-        Call this method if you want `max_predictions` completely random things use in
+        Call this method if you want n=`max_predictions` completely random things use in
         the next relaxation.
 
         Input:
@@ -298,10 +303,10 @@ class GASPredict(object):
             parameters_list     A list of `parameters` dictionaries that we may pass
                                 to GASpy
         '''
-        # We will be trimming the `self.rows` object. But in case the user wants to use
+        # We will be trimming the `self.site_rows` object. But in case the user wants to use
         # the same class instance to call a different method, we create a local copy of
         # the rows object to trim and use.
-        rows = copy.deepcopy(self.rows)
+        rows = copy.deepcopy(self.site_rows)
 
         # Post-process the rows; just read the method docstring for more details
         rows = self._post_process(rows,
@@ -316,6 +321,48 @@ class GASPredict(object):
                                     'gas': defaults.gas_parameters(self.adsorbate,
                                                                    settings=self.calc_settings),
                                     'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
+                                                                     top=row.top,
+                                                                     shift=row.shift,
+                                                                     settings=self.calc_settings),
+                                    'adsorption': defaults.adsorption_parameters(adsorbate=self.adsorbate,
+                                                                                 adsorption_site=row.adsorption_site,
+                                                                                 settings=self.calc_settings)})
+        # We're done!
+        return parameters_list
+
+
+    def matching_ads(self, adsorbate, max_predictions=10):
+        '''
+        Call this method if you want n=`max_predictions` random sites that have already been
+        relaxed with `adsorbate` on top. This method is useful for comparing a new adsorbate
+        to an old one.
+
+        Input:
+            adsorbate           The adsorbate that you want to compare to.
+            max_predictions     The number of random things you want to run.
+        Outut:
+            parameters_list     A list of `parameters` dictionaries that we may pass
+                                to GASpy
+        '''
+        # Instead of looking at `self.site_rows`, we'll instead start with `self.energy_rows`,
+        # since that list of rows contains relaxed rows
+        rows = copy.deepcopy(self.energy_rows)
+        # Filter out anything that doesn't include the adsorbate we're looking at.
+        rows = [row for row in rows if row.adsorbate == adsorbate]
+
+        # Post-process the rows; just read the method docstring for more details
+        rows = self._post_process(rows,
+                                  prioritization='random',
+                                  max_predictions=max_predictions)
+
+        # Create a parameters_list from our rows list.
+        parameters_list = []
+        for row in rows:
+            parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
+                                                                     settings=self.calc_settings),
+                                    'gas': defaults.gas_parameters(self.adsorbate,
+                                                                   settings=self.calc_settings),
+                                    'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split('.')],
                                                                      top=row.top,
                                                                      shift=row.shift,
                                                                      settings=self.calc_settings),
@@ -346,10 +393,10 @@ class GASPredict(object):
             parameters_list     A list of `parameters` dictionaries that we may pass
                                 to GASpy
         '''
-        # We will be trimming the `self.rows` object. But in case the user wants to use
+        # We will be trimming the `self.site_rows` object. But in case the user wants to use
         # the same class instance to call a different method, we create a local copy of
         # the rows object to trim and use.
-        rows = copy.deepcopy(self.rows)
+        rows = copy.deepcopy(self.site_rows)
         # Pull in the pre-processors. This in not a necessary step, but it might help
         # readability later on.
         lb_coord = self.pre_processors['coordination']

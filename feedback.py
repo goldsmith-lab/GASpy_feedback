@@ -38,8 +38,7 @@ XC = 'rpbe'
 ADS = ['OOH']
 MAX_DUMP = 0
 WRITE_DB = True
-#MODEL_LOC = '/global/project/projectdirs/m2755/Kevin/GASpy/GASpy_regressions/pkls/CoordcounAds_Energy_GP.pkl'
-MODEL_LOC = ''
+MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CoordcountAds_Energy_GP.pkl'
 PRIORITY = 'anything'
 MAX_PRED = 10
 
@@ -60,20 +59,6 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     model_location = luigi.Parameter(MODEL_LOC)
     max_pred = luigi.IntParameter(MAX_PRED)
 
-
-    #def requires(self):
-        #'''
-        #We need to update the Aux and Local databases before predicting the next set of
-        #systems to run.
-        #'''
-        ## This write_db thing here is here really only a placeholder for debugging.
-        #if self.write_db:
-            #yield UpdateAllDB(writeDB=True, max_processes=self.max_processes)
-        #else:
-            #yield UpdateAllDB(writeDB=False, max_processes=self.max_processes)
-#
-#
-    #def run(self):
     def requires(self):
         '''
         Here, we use the GASPredict class to identify the list of parameters that we can use
@@ -86,5 +71,38 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
                                      pkl=self.model_location,
                                      calc_settings=self.xc)
             parameters_list = getattr(gas_predict, PRIORITY)(max_predictions=self.max_pred)
+            for parameters in parameters_list:
+                yield FingerprintRelaxedAdslab(parameters=parameters)
+
+
+class RelaxedAdslabs(luigi.WrapperTask):
+    '''
+    Before Luigi does anything, let's declare this task's arguments and establish defaults.
+    These may be overridden on the command line when calling Luigi. If not, we pull them from
+    above.
+
+    Note that the pickled models should probably be updated as well. But instead of re-running
+    the regression here, our current setup has use using Cron to periodically re-run the
+    regression (and re-pickling the new model).
+    '''
+    xc = luigi.Parameter(XC)
+    max_processes = luigi.IntParameter(MAX_DUMP)
+    write_db = luigi.BoolParameter(WRITE_DB)
+    model_location = luigi.Parameter(MODEL_LOC)
+    max_pred = luigi.IntParameter(MAX_PRED)
+
+    def requires(self):
+        '''
+        Here, we use the GASPredict class to identify the list of parameters that we can use
+        to run the next set of relaxations.
+        '''
+        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
+        # max_predictions is actually max_predictions_per_adsorbate
+        for ads in ADS:
+            gas_predict = GASPredict(adsorbate=ads,
+                                     pkl=self.model_location,
+                                     calc_settings=self.xc)
+            parameters_list = getattr(gas_predict, 'matching_ads')(max_predictions=self.max_pred,
+                                                                   adsorbate='OH')
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
