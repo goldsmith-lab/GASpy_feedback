@@ -40,7 +40,7 @@ MAX_DUMP = 0
 WRITE_DB = True
 MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CoordcountAds_Energy_GP.pkl'
 PRIORITY = 'anything'
-MAX_PRED = 10
+MAX_PRED = 500
 
 
 class CoordcountAdsToEnergy(luigi.WrapperTask):
