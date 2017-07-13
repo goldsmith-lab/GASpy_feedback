@@ -271,7 +271,8 @@ class GASPredict(object):
             adsorption_parameters = defaults.adsorption_parameters(adsorbate=self.adsorbate,
                                                                    settings=self.calc_settings)
             adsorption_parameters['numtosubmit'] = None
-            adsorption_parameters['adsorbates'][0]['fp'] = {'coordination': row.coordination}
+            adsorption_parameters['adsorbates'][0]['fp'] = {'coordination': row.coordination,
+                                                            'nextnearestcoordination': row.nextnearestcoordination}
             # Add the parameters dictionary to our list for both the top and the bottom
             for top in [True, False]:
                 parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
