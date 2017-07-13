@@ -26,7 +26,6 @@ import pdb
 import sys
 from gas_predict import GASPredict
 sys.path.insert(0, '../')
-from tasks import UpdateAllDB
 from tasks import FingerprintRelaxedAdslab
 import luigi
 
