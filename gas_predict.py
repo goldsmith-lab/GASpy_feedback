@@ -256,6 +256,31 @@ class GASPredict(object):
             raise Exception('User did not provide a valid prioritization')
 
 
+    def _make_parameters_list(self, rows):
+        for row in rows:
+            parameters_list = []
+
+            # Define the adsorption parameters via `defaults`. Then we change `numtosubmit`
+            # to `None`, which indicates that we want to submit all of them. Also change
+            # the fingerprint to match the coordination of the row we are looking at.
+            adsorption_parameters = defaults.adsorption_parameters(adsorbate=self.adsorbate,
+                                                                   settings=self.calc_settings)
+            adsorption_parameters['numtosubmit'] = None
+            adsorption_parameters['adsorbates'][0]['fp'] = {'coordination': row.coordination}
+            # Add the parameters dictionary to our list for both the top and the bottom
+            for top in [True, False]:
+                parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
+                                                                         settings=self.calc_settings),
+                                        'gas': defaults.gas_parameters(self.adsorbate,
+                                                                       settings=self.calc_settings),
+                                        'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
+                                                                         top=top,
+                                                                         shift=row.shift,
+                                                                         settings=self.calc_settings),
+                                        'adsorption': adsorption_parameters})
+        return parameters_list
+
+
     def _sk_predict(self, inputs):
         '''
         Assuming that the model in the pickle was an SKLearn model, predict the model's
@@ -308,22 +333,8 @@ class GASPredict(object):
                                   prioritization='random',
                                   max_predictions=max_predictions)
 
-        # Create a parameters_list from our rows list.
-        parameters_list = []
-        for row in rows:
-            parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
-                                                                     settings=self.calc_settings),
-                                    'gas': defaults.gas_parameters(self.adsorbate,
-                                                                   settings=self.calc_settings),
-                                    'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
-                                                                     top=row.top,
-                                                                     shift=row.shift,
-                                                                     settings=self.calc_settings),
-                                    'adsorption': defaults.adsorption_parameters(adsorbate=self.adsorbate,
-                                                                                 adsorption_site=row.adsorption_site,
-                                                                                 settings=self.calc_settings)})
-        # We're done!
-        return parameters_list
+        # Use the _make_parameters_list method to turn the list of rows into a list of parameters
+        return self._make_parameters_list(rows)
 
 
     def energy_fr_coordcount_ads(self, prioritization='gaussian', max_predictions=0,
@@ -378,19 +389,5 @@ class GASPredict(object):
                                   target=energy_target,
                                   values=energies)
 
-        # Create a parameters_list from our rows list.
-        parameters_list = []
-        for row in rows:
-            parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
-                                                                     settings=self.calc_settings),
-                                    'gas': defaults.gas_parameters(self.adsorbate,
-                                                                   settings=self.calc_settings),
-                                    'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
-                                                                     top=row.top,
-                                                                     shift=row.shift,
-                                                                     settings=self.calc_settings),
-                                    'adsorption': defaults.adsorption_parameters(adsorbate=self.adsorbate,
-                                                                                 adsorption_site=row.adsorption_site,
-                                                                                 settings=self.calc_settings)})
-        # We're done!
-        return parameters_list
+        # Use the _make_parameters_list method to turn the list of rows into a list of parameters
+        return self._make_parameters_list(rows)
