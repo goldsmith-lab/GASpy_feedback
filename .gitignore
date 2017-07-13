@@ -2,4 +2,5 @@
 *.traj
 *.out
 queue*.sh
+*.log
 .ipynb_checkpoints/
