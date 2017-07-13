@@ -197,8 +197,12 @@ class GASPredict(object):
             # Treat max_predictions==0 as no limit
             if max_predictions == 0:
                 pass
+            # We trim to half of max_predictions right now, because _make_parameters_list
+            # currently creates two sets of parameters per system (i.e., top and bottom).
+            # It's set up like this right now because our Local enumerated site DB is
+            # not good at keeping track of top and bottom, so we do both (for now).
             else:
-                rows = rows[:max_predictions]
+                rows = rows[:int(max_predictions/2)]
             return rows
 
         if len(rows) <= max_predictions:
