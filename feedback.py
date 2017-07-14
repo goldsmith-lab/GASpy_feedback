@@ -35,8 +35,6 @@ DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
 XC = 'rpbe'
 #XC = 'beef-vdw'
 ADS = ['OOH']
-MAX_DUMP = 0
-WRITE_DB = True
 MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CoordcountAds_Energy_GP.pkl'
 PRIORITY = 'anything'
 MAX_PRED = 500
@@ -53,8 +51,6 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     regression (and re-pickling the new model).
     '''
     xc = luigi.Parameter(XC)
-    max_processes = luigi.IntParameter(MAX_DUMP)
-    write_db = luigi.BoolParameter(WRITE_DB)
     model_location = luigi.Parameter(MODEL_LOC)
     max_pred = luigi.IntParameter(MAX_PRED)
 
@@ -85,8 +81,6 @@ class RelaxedAdslabs(luigi.WrapperTask):
     regression (and re-pickling the new model).
     '''
     xc = luigi.Parameter(XC)
-    max_processes = luigi.IntParameter(MAX_DUMP)
-    write_db = luigi.BoolParameter(WRITE_DB)
     model_location = luigi.Parameter(MODEL_LOC)
     max_pred = luigi.IntParameter(MAX_PRED)
 
