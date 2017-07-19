@@ -279,14 +279,28 @@ class GASPredict(object):
                                                             'nextnearestcoordination': row.nextnearestcoordination}
             # Add the parameters dictionary to our list for both the top and the bottom
             for top in [True, False]:
+                # Define the slab parameters. We may be pulling the miller indices from
+                # either the Local site DB or the Local energy DB, which have different
+                # formats for miller index (i.e., (1.1.1) or (1, 1, 1)), we use EAFP to
+                # process either of them.
+                try:
+                    slab_parameters = defaults.slab_parameters(miller=[int(ind)
+                                                                       for ind in row.miller[1:-1].split(', ')],
+                                                               top=top,
+                                                               shift=row.shift,
+                                                               settings=self.calc_settings)
+                except ValueError:
+                    slab_parameters = defaults.slab_parameters(miller=[int(ind)
+                                                                       for ind in row.miller[1:-1].split('.')],
+                                                               top=top,
+                                                               shift=row.shift,
+                                                               settings=self.calc_settings)
+                # Finally:  Create the new parameters
                 parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
                                                                          settings=self.calc_settings),
                                         'gas': defaults.gas_parameters(self.adsorbate,
                                                                        settings=self.calc_settings),
-                                        'slab': defaults.slab_parameters(miller=[int(ind) for ind in row.miller[1:-1].split(', ')],
-                                                                         top=top,
-                                                                         shift=row.shift,
-                                                                         settings=self.calc_settings),
+                                        'slab': slab_parameters,
                                         'adsorption': adsorption_parameters})
         return parameters_list
 
