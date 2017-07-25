@@ -31,13 +31,12 @@ import luigi
 
 
 DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
-#DB_LOC = '/Users/Ktran/Nerd/GASpy'                  # Local
 XC = 'rpbe'
 #XC = 'beef-vdw'
 ADS = ['OOH']
-MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CoordcountAds_Energy_GP.pkl'
+MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/GP_energy_fr_coordcount_ads.pkl'
 PRIORITY = 'anything'
-MAX_PRED = 500
+MAX_PRED = 20
 
 
 class CoordcountAdsToEnergy(luigi.WrapperTask):
@@ -90,7 +89,9 @@ class RelaxedAdslabs(luigi.WrapperTask):
         to run the next set of relaxations.
         '''
         # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
-        # max_predictions is actually max_predictions_per_adsorbate
+        # max_predictions is actually max_predictions_per_adsorbate (i.e., if we MAX_PRED = 50
+        # and len(ADS) == 2, then we will have (50*2=) 100 predictions. I made it this way
+        # because I'm too lazy to code it better.
         for ads in ADS:
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
