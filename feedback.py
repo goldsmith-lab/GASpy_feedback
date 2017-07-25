@@ -36,7 +36,6 @@ XC = 'rpbe'
 ADS = ['OOH']
 MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/GP_energy_fr_coordcount_ads.pkl'
 PRIORITY = 'anything'
-MAX_PRED = 20
 
 
 class CoordcountAdsToEnergy(luigi.WrapperTask):
@@ -51,7 +50,7 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     '''
     xc = luigi.Parameter(XC)
     model_location = luigi.Parameter(MODEL_LOC)
-    max_pred = luigi.IntParameter(MAX_PRED)
+    max_pred = luigi.IntParameter(10)
 
     def requires(self):
         '''
@@ -81,7 +80,7 @@ class RelaxedAdslabs(luigi.WrapperTask):
     '''
     xc = luigi.Parameter(XC)
     model_location = luigi.Parameter(MODEL_LOC)
-    max_pred = luigi.IntParameter(MAX_PRED)
+    max_pred = luigi.IntParameter(10)
 
     def requires(self):
         '''
