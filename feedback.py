@@ -15,6 +15,11 @@ Here is a list of this script's inputs:
     MODEL_LOC   The location of the pickled model we want to use for the feedback
                 loop. Include the name of the file, as well.
     PRIORITY    The prioritization (i.e., method of choosing the next relaxation).
+                Can be:
+                    anything
+                    targeted
+                    random
+                    gaussian
     MAX_PRED    The maximum number of predictions that we want to sen through the
                 feedback loop. Note that the total number of submissions will still
                 be MAX_PRED*len(ADS)
@@ -35,7 +40,6 @@ XC = 'rpbe'
 #XC = 'beef-vdw'
 ADS = ['OOH']
 MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/GP_energy_fr_coordcount_ads.pkl'
-PRIORITY = 'anything'
 
 
 class CoordcountAdsToEnergy(luigi.WrapperTask):
@@ -50,6 +54,7 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     '''
     xc = luigi.Parameter(XC)
     model_location = luigi.Parameter(MODEL_LOC)
+    priority = luigi.Parameter('gaussian')
     max_pred = luigi.IntParameter(10)
 
     def requires(self):
@@ -63,7 +68,7 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
                                      calc_settings=self.xc)
-            parameters_list = getattr(gas_predict, PRIORITY)(max_predictions=self.max_pred)
+            parameters_list = getattr(gas_predict, self.priority)(max_predictions=self.max_pred)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
