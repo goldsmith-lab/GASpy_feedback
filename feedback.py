@@ -68,7 +68,8 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
                                      calc_settings=self.xc)
-            parameters_list = getattr(gas_predict, self.priority)(max_predictions=self.max_pred)
+            parameters_list = gas_predict.energy_fr_coordcount_ads(max_predictions=self.max_pred,
+                                                                   prioritization=self.priority)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
