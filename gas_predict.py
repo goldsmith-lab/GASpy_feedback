@@ -37,7 +37,8 @@ class GASPredict(object):
 
         We also initialize the `self.site_rows` object, which will be a list of ase-db rows
         (from our Local adsorption site DB) whose corresponding sites we predict will be
-        good ones to relax next.
+        good ones to relax next. Note that we filter out site rows that have already been
+        relaxed (and therefore stored in our Local energy DB).
 
         All of our __init__ arguments (excluding the pkl) are used to both define how we
         want to create our `parameters_list` objects and how we filter the `self.site_rows` so
@@ -86,9 +87,7 @@ class GASPredict(object):
                 # we have relaxed and stored in the local energy DB
                 relaxed_systems = np.unique(map(self._hash_row,
                                                 [(row, adsorbate) for row in enrgs_rows]))
-                relaxed_systems_dict = {}
-                for relaxed_system in relaxed_systems:
-                    relaxed_systems_dict[relaxed_system] = None
+                relaxed_systems_dict = dict.fromkeys(relaxed_systems, None)
                 # Now initialize/filter `self.site_rows` and 'self.energy_rows`
                 self.site_rows = [site_row for site_row in sites_rows
                                   if self._hash_row((site_row, adsorbate))
@@ -266,9 +265,8 @@ class GASPredict(object):
 
 
     def _make_parameters_list(self, rows):
+        parameters_list = []
         for row in rows:
-            parameters_list = []
-
             # Define the adsorption parameters via `defaults`. Then we change `numtosubmit`
             # to `None`, which indicates that we want to submit all of them. Also change
             # the fingerprint to match the coordination of the row we are looking at.
