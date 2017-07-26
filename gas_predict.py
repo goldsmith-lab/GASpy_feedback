@@ -67,7 +67,7 @@ class GASPredict(object):
         # We also import the adsorption energy DB so that we can filter out rows that we've
         # already relaxed.
         with connect(DB_LOC+'/adsorption_energy_database.db') as enrgs_db:
-            with connect(DB_LOC+'/enumerated_adsorption_sites.db') as sites_db:
+            with connect(DB_LOC+'/enumerated_adsorption_database.db') as sites_db:
                 sites_rows = [row for row in sites_db.select()]
                 # Filter out beef-vdw vs rpbe
                 if calc_settings == 'beef-vdw':
@@ -93,6 +93,12 @@ class GASPredict(object):
                                   if self._hash_row((site_row, adsorbate))
                                   not in relaxed_systems_dict]
                 self.energy_rows = enrgs_rows
+
+                # If there are no matches, then we should probably alert the user.
+                if not self.site_rows:
+                    raise Exception('DATABASE ERROR:  Could not find any site database rows to match input settings. Please verify db_loc, vasp_settings, or whether or not the database actually has the data you are looking for.')
+                if not self.energy_rows:
+                    raise Exception('DATABASE ERROR:  Could not find any energy database rows to match input settings. Please verify db_loc, vasp_settings, or whether or not the database actually has the data you are looking for.')
 
         # We put a conditional before we start working with the pickled model. This allows the
         # user to go straight for the "anything" method without needing to find a dummy model.

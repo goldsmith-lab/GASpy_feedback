@@ -4,7 +4,7 @@ This script contains classes/tasks for Luigi to execute.
 These tasks use the `GASPredict` class in this submodule to determine what systems
 to relax next, and then it performs the relaxation.
 
-Here is a list of this script's inputs:
+Here is a list of a lot of the inputs used in the various tasks:
     DB_LOC      Location of the Local databases. Do not include database names.
     XC          Exchange correlational
     ADS         The adsorbate(s) you want to look at
