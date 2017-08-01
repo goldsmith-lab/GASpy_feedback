@@ -10,17 +10,20 @@ import pdb
 import sys
 import copy
 import random
+from collections import OrderedDict
+import itertools
+from pprint import pprint
 import numpy as np
 import scipy as sp
 import dill as pickle
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
-from ase.db import connect
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.gaussian_process import GaussianProcessRegressor
-sys.path.append('..')
+sys.path.insert(0, '../')
 from gaspy import defaults
-sys.path.append('../GASpy_regressions')
+from gaspy import utils
+sys.path.insert(0, '../GASpy_regressions')
 
 
 # The location of the Local database. Do not include the name of the file.
@@ -35,10 +38,9 @@ class GASPredict(object):
         methods to use for predicting data. For reference:  These models are created by
         `regress.ipynb` in the `GASpy_regressions` submodule.
 
-        We also initialize the `self.site_rows` object, which will be a list of ase-db rows
-        (from our Local adsorption site DB) whose corresponding sites we predict will be
-        good ones to relax next. Note that we filter out site rows that have already been
-        relaxed (and therefore stored in our Local energy DB).
+        We also initialize the `self.site_docs` object, which will be a list of dictionaries
+        containing calculation information for cataloged sites that have not yet been
+        relaxed/put into the adsorption database.
 
         All of our __init__ arguments (excluding the pkl) are used to both define how we
         want to create our `parameters_list` objects and how we filter the `self.site_rows` so
@@ -63,42 +65,27 @@ class GASPredict(object):
         self.adsorbate = adsorbate
         self.calc_settings = calc_settings
 
-        # We import the adsorption site DB to initialize `rows` (see __init__'s docstring).
-        # We also import the adsorption energy DB so that we can filter out rows that we've
-        # already relaxed.
-        with connect(DB_LOC+'/adsorption_energy_database.db') as enrgs_db:
-            with connect(DB_LOC+'/enumerated_adsorption_database.db') as sites_db:
-                sites_rows = [row for row in sites_db.select()]
-                # Filter out beef-vdw vs rpbe
-                if calc_settings == 'beef-vdw':
-                    enrgs_rows = [row for row in enrgs_db.select() if row.gga == 'BF']
-                elif calc_settings == 'rpbe':
-                    enrgs_rows = [row for row in enrgs_db.select() if row.gga == 'RP']
-                else:
-                    raise Exception('Unknown calculation settings')
-                '''
-                Both databases are large and take a long time to filter. A good way to
-                filter them is to hash the important features of each system (see the
-                _hash_row method), and then store these hashed system into dictionary keys,
-                which can be searched/parsed quickly. We can then check hashes against
-                each other in this dictionary.
-                '''
-                # Create `relaxed_systems_dict`, whose keys are the hashes of the systems
-                # we have relaxed and stored in the local energy DB
-                relaxed_systems = np.unique(map(self._hash_row,
-                                                [(row, adsorbate) for row in enrgs_rows]))
-                relaxed_systems_dict = dict.fromkeys(relaxed_systems, None)
-                # Now initialize/filter `self.site_rows` and 'self.energy_rows`
-                self.site_rows = [site_row for site_row in sites_rows
-                                  if self._hash_row((site_row, adsorbate))
-                                  not in relaxed_systems_dict]
-                self.energy_rows = enrgs_rows
-
-                # If there are no matches, then we should probably alert the user.
-                if not self.site_rows:
-                    raise Exception('DATABASE ERROR:  Could not find any site database rows to match input settings. Please verify db_loc, vasp_settings, or whether or not the database actually has the data you are looking for.')
-                if not self.energy_rows:
-                    raise Exception('DATABASE ERROR:  Could not find any energy database rows to match input settings. Please verify db_loc, vasp_settings, or whether or not the database actually has the data you are looking for.')
+        # Fetch mongo cursors for our adsorption and catalog databases so that we can
+        # start parsing.
+        with utils.get_adsorption_db() as ads_db:
+            ads_cursor = self._get_cursor(ads_db, 'adsorption',
+                                          calc_settings=calc_settings)
+        with utils.get_catalog_db() as cat_db:
+            cat_cursor = self._get_cursor(cat_db, 'catalog')
+        # Create copies of the catalog cusror (generator) since we'll be using
+        # it more than once.
+        cat_cursor, _cat_cursor = itertools.tee(cat_cursor)
+        # Hash the cursors so that we can filter out any items in the catalog
+        # that we have already relaxed and put into the adsorption database.
+        # Note that we keep `ads_hash` in a dict so that we can search through
+        # it, but we turn `cat_hash` into a list so that we can iterate through
+        # it alongside `cat_cursor`
+        ads_hash = self._hash_cursor(ads_cursor)
+        cat_hash = list(self._hash_cursor(cat_cursor).keys())
+        # Perform the filtering while simultaneously creating a big
+        # fingerprint thing...?
+        self.site_docs = [doc for i, doc in enumerate(_cat_cursor)
+                          if cat_hash[i] not in ads_hash]
 
         # We put a conditional before we start working with the pickled model. This allows the
         # user to go straight for the "anything" method without needing to find a dummy model.
@@ -121,50 +108,90 @@ class GASPredict(object):
                 raise Exception('We have not yet established how to deal with this type of model')
         else:
             print('No model provided. Only the "anything" method will work.')
+        pdb.set_trace()
 
 
-    def _hash_row(self, tup):
+    def _get_cursor(self, client, collection_name, calc_settings=None):
+        '''
+        This method pulls out a set of fingerprints from a mongo client and returns
+        a mongo cursor (generator) object that returns the fingerprints
+
+        Inputs:
+            client              Mongo client object
+            collection_name     The collection name within the client that you want to look at
+            calc_settings       An optional argument that will only pull out data with these
+                                calc settings.
+
+        Output:
+            cursor  A mongo cursor object that can be iterated to return a dictionary
+                    of fingerprint properties
+        '''
+        # Put the "fingerprinting" into a `group` dictionary, which we will
+        # use to pull out data from the mongo database
+        group = {'$group': {'_id': {'mpid': '$processed_data.calculation_info.mpid',
+                                    'miller': '$processed_data.calculation_info.miller',
+                                    'coordination': '$processed_data.fp_init.coordination',
+                                    'neighborcoord': '$processed_data.fp_init.neighborcoord',
+                                    'nextnearestcoordination': '$processed_data.fp_init.nextnearestcoordination',
+                                    'adsorbate': '$processed_data.calculation_settings.adsorbate_names'}}}
+
+        # If the user did not put in calc_settings, then proceed as normal.
+        if not calc_settings:
+            pipeline = [group]
+        # If the user provided calc_settings, then filter out results that do not
+        # use those calc_settings
+        elif calc_settings == 'rpbe':
+            match = {'$match': {'processed_data.vasp_settings.gga': 'RP'}}
+            pipeline = [match, group]
+        elif calc_settings == 'beef-vdw':
+            match = {'$match': {'processed_data.vasp_settings.gga': 'BF'}}
+            pipeline = [match, group]
+        else:
+            raise Exception('Unknown calc_settings')
+
+        # Get the particular collection from the mongo client's database
+        collection = getattr(client.db, collection_name)
+
+        # Create the cursor. We set allowDiskUse=True to allow mongo to write to
+        # temporary files, which it needs to do for large databases. We also
+        # set useCursor=True so that `aggregate` returns a cursor object
+        # (otherwise we run into memory issues).
+        cursor = collection.aggregate(pipeline, allowDiskUse=True, useCursor=True)
+        return cursor
+
+
+    def _hash_cursor(self, cursor):
         '''
         This method helps convert the important characteristics of our systems into hashes
         so that we may sort through them more quickly. This is important to do when trying to
         compare entries in our two databases; it helps speed things up. Check out the __init__
         method for more details.
 
+        Note that this method will consume whatever iterator it is given.
+
         Input:
-            tup     A 2-tuple. The first item should be the row object you are hashing, and
-                    the second item should be the adsorbate you are interested in. Note that
-                    this method effectively ignores the second "adsorbate" item if it thinks
-                    that you've passed it a row object from the Local energy database.
+            cursor      A pymongo cursor object that has been created using `_get_cursor`.
+                        This method assumes that the `cursor` object was created by
+                        `collection.aggregate()`, because cursors from `collection.aggregate()`
+                        return dictionaries that are nested within the `_id` key.
+                        Normally-generated cursors will return actual IDs, not dicts.
+        Output:
+            systems     An ordered dictionary whose keys are hashes of the mongo doc
+                        returned by `cursor` and whose values are empty. This dictionary
+                        is intended to be parsed alongside the cursor, which is why it's
+                        ordered.
         '''
-        # Unpack the tuple
-        row = tup[0]
-        adsorbate = tup[1]
-        # Unpack information from the row
-        mpid = row.mpid
-        shift = row.shift
+        systems = OrderedDict()
+        for doc in cursor:
+            # `system` will be one long string of the fingerprints
+            system = ''
+            for key, value in doc['_id'].iteritems():
+                # Note that we turn the values into strings explicitly, because some
+                # fingerprint features may not be strings (e.g., list of miller indices).
+                system += str(key + '=' + str(value) + ', ')
+            systems[hash(system)] = None
 
-        # Use EAFP (Google it) to unpack information from either the energy database or the site
-        # database (respectively), since they have slightly different attribute characteristics
-        try:
-            adsorbate = row.adsorbate
-            miller = ' '.join(row.miller.split('.'))
-            coordination = row.initial_coordination
-            neighborcoord = row.initial_neighborcoord
-            nextnearestcoordination = row.initial_nextnearestcoordination
-        except AttributeError:
-            adsorbate = self.adsorbate
-            miller = ' '.join(row.miller.split(', '))
-            coordination = row.coordination
-            neighborcoord = row.neighborcoord
-            nextnearestcoordination = row.nextnearestcoordination
-
-        # Put the surface characteristics together into one string, `system` so that we can
-        # hash it
-        system = ''
-        for item in [adsorbate, mpid, miller, shift,
-                     coordination, neighborcoord, nextnearestcoordination]:
-            system += str(item)
-        return hash(system)
+        return systems
 
 
     def _post_process(self, rows, prioritization, max_predictions,
