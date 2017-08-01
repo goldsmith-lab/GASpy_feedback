@@ -30,9 +30,12 @@ sys.path.insert(0, '../GASpy_regressions')
 DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
 #DB_LOC = '/Users/KTran/Nerd/GASpy'                  # Local
 
-
 class GASPredict(object):
-    def __init__(self, adsorbate, pkl=None, calc_settings='beef-vdw'):
+    def __init__(self, adsorbate, pkl=None, calc_settings='beef-vdw',
+                 fingerprints={'miller': '$processed_data.calculation_info.miller',
+                               'coordination': '$processed_data.fp_init.coordination',
+                               'neighborcoord': '$processed_data.fp_init.neighborcoord',
+                               'nextnearestcoordination': '$processed_data.fp_init.nextnearestcoordination'}):
         '''
         Here, we open the pickle. And then depending on the model type, we assign different
         methods to use for predicting data. For reference:  These models are created by
@@ -47,19 +50,22 @@ class GASPredict(object):
         that we don't try to re-submit calculations that we've already done.
 
         Input:
-            pkl             The location of a pickle dictionary object
-                            'model' key should contain the model object.
-                            'pre_processors' key should contain a dictionary whose keys are the
-                                model features (i.e., the ase-db row attributes) and whose values
-                                are the already-fitted pre-processors (e.g., LabelBinarizer)
-                            Note that the user may provide "" for this argument, as well. This
+            pkl             The location of a pickle dictionary object:
+                                'model' key should contain the model object.
+                                'pre_processors' key should contain a dictionary whose keys
+                                 are the model features (i.e., the ase-db row attributes) and
+                                 whose values are the already-fitted pre-processors
+                                 (e.g., LabelBinarizer)
+                            Note that the user may provide '' for this argument, as well. This
                             should be done if the user wants to call the "anything" method.
-            adsorbate       A string indicating the adsorbate that you want to make a prediction
-                            for.
+            adsorbate       A strings indicating the adsorbate that you want to make a
+                            prediction for.
             calc_settings   The calculation settings that we want to use. If we are using
                             something other than beef-vdw or rpbe, then we need to do some
                             more hard-coding here so that we know what in the local energy
                             database can work as a flag for this new calculation method.
+            fingerprints    A dictionary of fingerprints and their locations in our
+                            mongo documents.
         '''
         # Save some arguments to the object for later use
         self.adsorbate = adsorbate
@@ -69,9 +75,10 @@ class GASPredict(object):
         # start parsing.
         with utils.get_adsorption_db() as ads_db:
             ads_cursor = self._get_cursor(ads_db, 'adsorption',
-                                          calc_settings=calc_settings)
+                                          calc_settings=calc_settings,
+                                          fingerprints=fingerprints)
         with utils.get_catalog_db() as cat_db:
-            cat_cursor = self._get_cursor(cat_db, 'catalog')
+            cat_cursor = self._get_cursor(cat_db, 'catalog', fingerprints=fingerprints)
         # Create copies of the catalog cusror (generator) since we'll be using
         # it more than once.
         cat_cursor, _cat_cursor = itertools.tee(cat_cursor)
@@ -84,7 +91,7 @@ class GASPredict(object):
         cat_hash = list(self._hash_cursor(cat_cursor).keys())
         # Perform the filtering while simultaneously creating a big
         # fingerprint thing...?
-        self.site_docs = [doc for i, doc in enumerate(_cat_cursor)
+        self.site_docs = [doc['_id'] for i, doc in enumerate(_cat_cursor)
                           if cat_hash[i] not in ads_hash]
 
         # We put a conditional before we start working with the pickled model. This allows the
@@ -111,7 +118,7 @@ class GASPredict(object):
         pdb.set_trace()
 
 
-    def _get_cursor(self, client, collection_name, calc_settings=None):
+    def _get_cursor(self, client, collection_name, fingerprints, calc_settings=None):
         '''
         This method pulls out a set of fingerprints from a mongo client and returns
         a mongo cursor (generator) object that returns the fingerprints
@@ -119,6 +126,10 @@ class GASPredict(object):
         Inputs:
             client              Mongo client object
             collection_name     The collection name within the client that you want to look at
+            fingerprints        A dictionary of fingerprints and their locations in our
+                                mongo documents. For example:
+                                    fingerprints = {'mpid': '$processed_data.calculation_info.mpid',
+                                                    'coordination': '$processed_data.fp_init.coordination'}
             calc_settings       An optional argument that will only pull out data with these
                                 calc settings.
 
@@ -128,23 +139,24 @@ class GASPredict(object):
         '''
         # Put the "fingerprinting" into a `group` dictionary, which we will
         # use to pull out data from the mongo database
-        group = {'$group': {'_id': {'mpid': '$processed_data.calculation_info.mpid',
-                                    'miller': '$processed_data.calculation_info.miller',
-                                    'coordination': '$processed_data.fp_init.coordination',
-                                    'neighborcoord': '$processed_data.fp_init.neighborcoord',
-                                    'nextnearestcoordination': '$processed_data.fp_init.nextnearestcoordination',
-                                    'adsorbate': '$processed_data.calculation_settings.adsorbate_names'}}}
+        group = {'$group': {'_id': fingerprints}}
 
-        # If the user did not put in calc_settings, then proceed as normal.
+        # If the user did not put in calc_settings, then assume they have passed
+        # a catalog collection and proceed as normal.
         if not calc_settings:
             pipeline = [group]
-        # If the user provided calc_settings, then filter out results that do not
-        # use those calc_settings
+
+        # If the user provided calc_settings, then match only results that use
+        # this calc_setting. We also assume that this collection is an
+        # adsorption collection, in which case we also need to match results
+        # that use the adsorbate(s) we are looking at.
         elif calc_settings == 'rpbe':
-            match = {'$match': {'processed_data.vasp_settings.gga': 'RP'}}
+            match = {'$match': {'processed_data.vasp_settings.gga': 'RP',
+                                'processed_data.calculation_settings.adsorbate_names': [self.adsorbate]}}
             pipeline = [match, group]
         elif calc_settings == 'beef-vdw':
-            match = {'$match': {'processed_data.vasp_settings.gga': 'BF'}}
+            match = {'$match': {'processed_data.vasp_settings.gga': 'BF',
+                                'processed_data.calculation_settings.adsorbate_names': [self.adsorbate]}}
             pipeline = [match, group]
         else:
             raise Exception('Unknown calc_settings')
