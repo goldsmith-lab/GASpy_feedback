@@ -234,8 +234,8 @@ class GASPredict(object):
         return systems
 
 
-    def _post_process(self, docs, prioritization, max_predictions,
-                      target=None, values=None, n_sigmas=6):
+    def _make_parameters_list(self, docs, prioritization, max_predictions,
+                              target=None, values=None, n_sigmas=6):
         '''
         Given the remaining mongo doc objects, this method will decide which of those
         docs to return for further relaxations. We do this in two steps:  1) choose and
@@ -258,7 +258,8 @@ class GASPredict(object):
                             deviation is calculated by dividing the range in values
                             by `n_sigmas`.
         Output:
-            docs    The rearrange version of the supplied list
+            parameters_list     The list of parameters dictionaries that may be sent
+                                to GASpy
         '''
         def __trim(docs, max_predictions):
             '''
@@ -280,9 +281,9 @@ class GASPredict(object):
         if len(docs) <= max_predictions/2:
             '''
             If we have less choices than the max number of predictions, then
-            just give it back...
+            just move on
             '''
-            return docs
+            pass
 
         elif prioritization == 'targeted':
             '''
@@ -301,14 +302,14 @@ class GASPredict(object):
             # from `target`. We use it to sort/prioritize the docs.
             sort_inds = sorted(range(len(values)), key=lambda i: abs(values[i]-target))
             docs = [docs[i] for i in sort_inds]
-            return __trim(docs, max_predictions)
+            docs = __trim(docs, max_predictions)
 
         elif prioritization == 'random':
             '''
             A 'random' prioritization means that we're just going to pick things at random.
             '''
             random.shuffle(docs)
-            return __trim(docs, max_predictions)
+            docs = __trim(docs, max_predictions)
 
         elif prioritization == 'gaussian':
             '''
@@ -331,13 +332,12 @@ class GASPredict(object):
             # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; rename
             # it p, and call np.random.choice
             p = (pdf_eval/sum(pdf_eval)).tolist()
-            return np.random.choice(docs, size=max_predictions, replace=False, p=p)
+            docs = np.random.choice(docs, size=max_predictions, replace=False, p=p)
 
         else:
             raise Exception('User did not provide a valid prioritization')
 
-
-    def _make_parameters_list(self, docs):
+        # Now create the parameters list from the trimmed and processed `docs`
         parameters_list = []
         for doc in docs:
             # Define the adsorption parameters via `defaults`. Then we change `numtosubmit`
@@ -427,13 +427,12 @@ class GASPredict(object):
         # the docs object to trim and use.
         docs = copy.deepcopy(self.site_docs)
 
-        # Post-process the docs; just read the method docstring for more details
-        docs = self._post_process(docs,
-                                  prioritization='random',
-                                  max_predictions=max_predictions)
+        # Post-process the docs and make the parameters list
+        parameters_list = self._make_parameters_list(docs,
+                                                     prioritization='random',
+                                                     max_predictions=max_predictions)
 
-        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
-        return self._make_parameters_list(docs)
+        return parameters_list
 
 
     def matching_ads(self, adsorbate, max_predictions=10):
@@ -455,13 +454,12 @@ class GASPredict(object):
         # Filter out anything that doesn't include the adsorbate we're looking at.
         docs = [doc for doc in docs if doc['adsorbates'] == [adsorbate]]
 
-        # Post-process the docs; just read the method docstring for more details
-        docs = self._post_process(docs,
-                                  prioritization='random',
-                                  max_predictions=max_predictions)
+        # Post-process the docs and make the parameters list
+        parameters_list = self._make_parameters_list(docs,
+                                                     prioritization='random',
+                                                     max_predictions=max_predictions)
 
-        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
-        return self._make_parameters_list(docs)
+        return parameters_list
 
 
     def energy_fr_coordcount_ads(self, prioritization='gaussian', max_predictions=0,
@@ -510,11 +508,11 @@ class GASPredict(object):
         energies = [energies[i] for i in np.where(energy_mask)[0].tolist()]
 
         # Post-process the docs; just read the method docstring for more details
-        docs = self._post_process(docs,
-                                  prioritization=prioritization,
-                                  max_predictions=max_predictions,
-                                  target=energy_target,
-                                  values=energies)
+        parameters_list = self._make_parameters_list(docs,
+                                                     prioritization=prioritization,
+                                                     max_predictions=max_predictions,
+                                                     target=energy_target,
+                                                     values=energies)
 
         # Use the _make_parameters_list method to turn the list of docs into a list of parameters
-        return self._make_parameters_list(docs)
+        return parameters_list
