@@ -26,19 +26,9 @@ from gaspy import utils
 sys.path.insert(0, '../GASpy_regressions')
 
 
-# The location of the Local database. Do not include the name of the file.
-DB_LOC = '/global/cscratch1/sd/zulissi/GASpy_DB'    # Cori
-#DB_LOC = '/Users/KTran/Nerd/GASpy'                  # Local
-
 class GASPredict(object):
     def __init__(self, adsorbate, pkl=None, calc_settings='beef-vdw',
-                 fingerprints={'mpid': '$processed_data.calculation_info.mpid',
-                               'miller': '$processed_data.calculation_info.miller',
-                               'shift': '$processed_data.calculation_info.shift',
-                               'top': '$processed_data.calculation_info.top',
-                               'coordination': '$processed_data.fp_init.coordination',
-                               'neighborcoord': '$processed_data.fp_init.neighborcoord',
-                               'nextnearestcoordination': '$processed_data.fp_init.nextnearestcoordination'}):
+                 fingerprints=None):
         '''
         Here, we open the pickle. And then depending on the model type, we assign different
         methods to use for predicting data. For reference:  These models are created by
@@ -49,14 +39,14 @@ class GASPredict(object):
         relaxed/put into the adsorption database.
 
         All of our __init__ arguments (excluding the pkl) are used to both define how we
-        want to create our `parameters_list` objects and how we filter the `self.site_rows` so
+        want to create our `parameters_list` objects and how we filter the `self.site_docs` so
         that we don't try to re-submit calculations that we've already done.
 
         Input:
             pkl             The location of a pickle dictionary object:
                                 'model' key should contain the model object.
                                 'pre_processors' key should contain a dictionary whose keys
-                                 are the model features (i.e., the ase-db row attributes) and
+                                 are the model features (i.e., the mongo doc attributes) and
                                  whose values are the already-fitted pre-processors
                                  (e.g., LabelBinarizer)
                             Note that the user may provide '' for this argument, as well. This
@@ -70,32 +60,45 @@ class GASPredict(object):
             fingerprints    A dictionary of fingerprints and their locations in our
                             mongo documents.
         '''
+        # Default value for fingerprints. Since it's a mutable dictionary, we define it
+        # down here instead of in the __init__ line.
+        if not fingerprints:
+            fingerprints = self.__default_fingeprints()
+
         # Save some arguments to the object for later use
         self.adsorbate = adsorbate
         self.calc_settings = calc_settings
 
         # Fetch mongo cursors for our adsorption and catalog databases so that we can
-        # start parsing.
+        # start parsing out cataloged sites that we've already relaxed.
         with utils.get_adsorption_db() as ads_db:
             ads_cursor = self._get_cursor(ads_db, 'adsorption',
                                           calc_settings=calc_settings,
-                                          fingerprints=fingerprints)
+                                          fingerprints=fingerprints,
+                                          adsorbates=[self.adsorbate])
         with utils.get_catalog_db() as cat_db:
             cat_cursor = self._get_cursor(cat_db, 'catalog', fingerprints=fingerprints)
-        # Create copies of the catalog cusror (generator) since we'll be using
-        # it more than once.
+        # Create copies of the cursors (which are generators) since we'll be using
+        # them more than once.
         cat_cursor, _cat_cursor = itertools.tee(cat_cursor)
         # Hash the cursors so that we can filter out any items in the catalog
-        # that we have already relaxed and put into the adsorption database.
-        # Note that we keep `ads_hash` in a dict so that we can search through
-        # it, but we turn `cat_hash` into a list so that we can iterate through
-        # it alongside `cat_cursor`
+        # that we have already relaxed. Note that we keep `ads_hash` in a dict so
+        # that we can search through it, but we turn `cat_hash` into a list so that
+        # we can iterate through it alongside `cat_cursor`
         ads_hash = self._hash_cursor(ads_cursor)
         cat_hash = list(self._hash_cursor(cat_cursor).keys())
-        # Perform the filtering while simultaneously creating a big
-        # fingerprint thing...?
+        # Perform the filtering while simultaneously creating `site_docs`
         self.site_docs = [doc['_id'] for i, doc in enumerate(_cat_cursor)
                           if cat_hash[i] not in ads_hash]
+
+        # Create `ads_docs` by finding all of the entries. Do so by not specifying
+        # an adsorbate and by adding the `adsorbate` key to the fingerprint (and
+        # thus the doc, as well).
+        ads_fp = self.__default_fingeprints()
+        ads_fp['adsorbates'] = '$processed_data.calculation_info.adsorbate_names'
+        self.ads_docs = [doc['_id'] for doc in self._get_cursor(ads_db, 'adsorption',
+                                                                calc_settings=calc_settings,
+                                                                fingerprints=ads_fp)]
 
         # We put a conditional before we start working with the pickled model. This allows the
         # user to go straight for the "anything" method without needing to find a dummy model.
@@ -117,11 +120,30 @@ class GASPredict(object):
             else:
                 raise Exception('We have not yet established how to deal with this type of model')
         else:
-            print('No model provided. Only the "anything" method will work.')
-        pdb.set_trace()
+            print('No model provided. Only the "anything" or "matching_ads" methods will work.')
 
 
-    def _get_cursor(self, client, collection_name, fingerprints, calc_settings=None):
+    def __default_fingeprints(self):
+        '''
+        Returns a dictionary that is meant to be passed to mongo aggregators to create
+        new mongo docs. The keys here are the keys for the new mongo doc, and the values
+        are where you can find the information from the old mongo docs (in our databases).
+
+        Note that our code implicitly assumes an identical document structure between all
+        of the collections that it looks at.
+        '''
+        fingerprints = {'mpid': '$processed_data.calculation_info.mpid',
+                        'miller': '$processed_data.calculation_info.miller',
+                        'shift': '$processed_data.calculation_info.shift',
+                        'top': '$processed_data.calculation_info.top',
+                        'coordination': '$processed_data.fp_init.coordination',
+                        'neighborcoord': '$processed_data.fp_init.neighborcoord',
+                        'nextnearestcoordination': '$processed_data.fp_init.nextnearestcoordination'}
+        return fingerprints
+
+
+    def _get_cursor(self, client, collection_name, fingerprints,
+                    adsorbates=None, calc_settings=None):
         '''
         This method pulls out a set of fingerprints from a mongo client and returns
         a mongo cursor (generator) object that returns the fingerprints
@@ -133,36 +155,39 @@ class GASPredict(object):
                                 mongo documents. For example:
                                     fingerprints = {'mpid': '$processed_data.calculation_info.mpid',
                                                     'coordination': '$processed_data.fp_init.coordination'}
+            adsorbates          A list of adsorbates that you want to find matches for
             calc_settings       An optional argument that will only pull out data with these
                                 calc settings.
-
         Output:
             cursor  A mongo cursor object that can be iterated to return a dictionary
                     of fingerprint properties
         '''
         # Put the "fingerprinting" into a `group` dictionary, which we will
-        # use to pull out data from the mongo database
+        # use to pull out data from the mongo database. Also, initialize
+        # a `match` dictionary, which we will use to filter results.
         group = {'$group': {'_id': fingerprints}}
-
-        # If the user did not put in calc_settings, then assume they have passed
-        # a catalog collection and proceed as normal.
-        if not calc_settings:
-            pipeline = [group]
+        match = {'$match': {}}
 
         # If the user provided calc_settings, then match only results that use
-        # this calc_setting. We also assume that this collection is an
-        # adsorption collection, in which case we also need to match results
-        # that use the adsorbate(s) we are looking at.
+        # this calc_setting.
+        if not calc_settings:
+            pass
         elif calc_settings == 'rpbe':
-            match = {'$match': {'processed_data.vasp_settings.gga': 'RP',
-                                'processed_data.calculation_settings.adsorbate_names': [self.adsorbate]}}
-            pipeline = [match, group]
+            match['$match']['processed_data.vasp_settings.gga'] = 'RP'
         elif calc_settings == 'beef-vdw':
-            match = {'$match': {'processed_data.vasp_settings.gga': 'BF',
-                                'processed_data.calculation_settings.adsorbate_names': [self.adsorbate]}}
-            pipeline = [match, group]
+            match['$match']['processed_data.vasp_settings.gga'] = 'BF'
         else:
             raise Exception('Unknown calc_settings')
+        # If the user specificed an adsorbate, then match only results from
+        # that adsorbate
+        if adsorbates:
+            match['$match']['processed_data.calculation_info.adsorbate_names'] = adsorbates
+        
+        # Compile the pipeline; add matches only if any matches are specified
+        if match['$match']:
+            pipeline = [match, group]
+        else:
+            pipeline = [group]
 
         # Get the particular collection from the mongo client's database
         collection = getattr(client.db, collection_name)
@@ -209,22 +234,22 @@ class GASPredict(object):
         return systems
 
 
-    def _post_process(self, rows, prioritization, max_predictions,
+    def _post_process(self, docs, prioritization, max_predictions,
                       target=None, values=None, n_sigmas=6):
         '''
-        Given the remaining ase-db row objects, this method will decide which of those
-        rows to return for further relaxations. We do this in two steps:  1) choose and
-        use a prioritization method (i.e., how to pick the rows), and then 2) trim the
-        rows down to the number of predictions we want.
+        Given the remaining mongo doc objects, this method will decide which of those
+        docs to return for further relaxations. We do this in two steps:  1) choose and
+        use a prioritization method (i.e., how to pick the docs), and then 2) trim the
+        docs down to the number of predictions we want.
 
         Inputs:
-            rows            A list of ase-db row objects
+            docs            A list of mongo doc objects
             prioritization  A string corresponding to a particular prioritization method.
                             So far, valid values include:
                                 targeted (try to hit a single value, `target`)
                                 random (randomly chosen)
                                 gaussian (gaussian spread around target)
-            max_predictions A maximum value for the number of rows we should return
+            max_predictions A maximum value for the number of docs we should return
             target          The target response we are trying to hit
             values          The list of values that we are sorting with
             n_sigmas        If we use a probability distribution function (e.g.,
@@ -233,12 +258,12 @@ class GASPredict(object):
                             deviation is calculated by dividing the range in values
                             by `n_sigmas`.
         Output:
-            rows    The rearrange version of the supplied list
+            docs    The rearrange version of the supplied list
         '''
-        def __trim(rows, max_predictions):
+        def __trim(docs, max_predictions):
             '''
-            Trim the rows down according to this method's `max_predictions` argument. Since
-            we trim the end of the list, we are implicitly prioritizing the rows in the
+            Trim the docs down according to this method's `max_predictions` argument. Since
+            we trim the end of the list, we are implicitly prioritizing the docs in the
             beginning of the list.
             '''
             # Treat max_predictions==0 as no limit
@@ -249,15 +274,15 @@ class GASPredict(object):
             # It's set up like this right now because our Local enumerated site DB is
             # not good at keeping track of top and bottom, so we do both (for now).
             else:
-                rows = rows[:int(max_predictions/2)]
-            return rows
+                docs = docs[:int(max_predictions/2)]
+            return docs
 
-        if len(rows) <= max_predictions:
+        if len(docs) <= max_predictions/2:
             '''
             If we have less choices than the max number of predictions, then
             just give it back...
             '''
-            return rows
+            return docs
 
         elif prioritization == 'targeted':
             '''
@@ -273,23 +298,23 @@ class GASPredict(object):
             # `sort_inds` is a descending list of indices that correspond to the indices of
             # `values` that are proximate to `target`. In other words, `values[sort_inds[0]]`
             # is the closest value to `target`, and `values[sort_inds[-1]]` is furthest
-            # from `target`. We use it to sort/prioritize the rows.
+            # from `target`. We use it to sort/prioritize the docs.
             sort_inds = sorted(range(len(values)), key=lambda i: abs(values[i]-target))
-            rows = [rows[i] for i in sort_inds]
-            return __trim(rows, max_predictions)
+            docs = [docs[i] for i in sort_inds]
+            return __trim(docs, max_predictions)
 
         elif prioritization == 'random':
             '''
             A 'random' prioritization means that we're just going to pick things at random.
             '''
-            random.shuffle(rows)
-            return __trim(rows, max_predictions)
+            random.shuffle(docs)
+            return __trim(docs, max_predictions)
 
         elif prioritization == 'gaussian':
             '''
             Here, we create a gaussian probability distribution centered at `target`. Then
             we choose points according to the probability distribution so that we get a lot
-            of things near the target and fewer thnigs the further we go from the target.
+            of things near the target and fewer things the further we go from the target.
             '''
             # And if the user chooses `gaussian`, then they had better supply values.
             if not values:
@@ -306,43 +331,47 @@ class GASPredict(object):
             # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; rename
             # it p, and call np.random.choice
             p = (pdf_eval/sum(pdf_eval)).tolist()
-            return np.random.choice(rows, size=max_predictions, replace=False, p=p)
+            return np.random.choice(docs, size=max_predictions, replace=False, p=p)
 
         else:
             raise Exception('User did not provide a valid prioritization')
 
 
-    def _make_parameters_list(self, rows):
+    def _make_parameters_list(self, docs):
         parameters_list = []
-        for row in rows:
+        for doc in docs:
             # Define the adsorption parameters via `defaults`. Then we change `numtosubmit`
-            # to `None`, which indicates that we want to submit all of them. Also change
-            # the fingerprint to match the coordination of the row we are looking at.
+            # to `None`, which indicates that we want to submit all of them.
             adsorption_parameters = defaults.adsorption_parameters(adsorbate=self.adsorbate,
                                                                    settings=self.calc_settings)
             adsorption_parameters['numtosubmit'] = None
-            adsorption_parameters['adsorbates'][0]['fp'] = {'coordination': row.coordination,
-                                                            'nextnearestcoordination': row.nextnearestcoordination}
+
+            # Change the fingerprint to match the coordination of the doc we are looking at.
+            # Since there is a chance the user may have omitted any of these fingerprints,
+            # we use EAFP to define them.
+            fp = {}
+            try:
+                fp['coordination'] = doc['coordination']
+            except KeyError:
+                pass
+            try:
+                fp['neighborcoord'] = doc['neighborcoord']
+            except KeyError:
+                pass
+            try:
+                fp['nextnearestcoordination'] = doc['nextnearestcoordination']
+            except KeyError:
+                pass
+            adsorption_parameters['adsorbates'][0]['fp'] = fp
+
             # Add the parameters dictionary to our list for both the top and the bottom
             for top in [True, False]:
-                # Define the slab parameters. We may be pulling the miller indices from
-                # either the Local site DB or the Local energy DB, which have different
-                # formats for miller index (i.e., (1.1.1) or (1, 1, 1)), we use EAFP to
-                # process either of them.
-                try:
-                    slab_parameters = defaults.slab_parameters(miller=[int(ind)
-                                                                       for ind in row.miller[1:-1].split(', ')],
-                                                               top=top,
-                                                               shift=row.shift,
-                                                               settings=self.calc_settings)
-                except ValueError:
-                    slab_parameters = defaults.slab_parameters(miller=[int(ind)
-                                                                       for ind in row.miller[1:-1].split('.')],
-                                                               top=top,
-                                                               shift=row.shift,
-                                                               settings=self.calc_settings)
+                slab_parameters = defaults.slab_parameters(miller=doc['miller'],
+                                                           top=top,
+                                                           shift=doc['shift'],
+                                                           settings=self.calc_settings)
                 # Finally:  Create the new parameters
-                parameters_list.append({'bulk': defaults.bulk_parameters(row.mpid,
+                parameters_list.append({'bulk': defaults.bulk_parameters(doc['mpid'],
                                                                          settings=self.calc_settings),
                                         'gas': defaults.gas_parameters(self.adsorbate,
                                                                        settings=self.calc_settings),
@@ -359,7 +388,7 @@ class GASPredict(object):
         Input:
             inputs      A list of pre-processed factors/inputs that the model can accept
         Output:
-            responses   A list of values that the model predicts for the rows
+            responses   A list of values that the model predicts for the docs
         '''
         # SK models come with a method, `predict`, to transform the pre-processed input
         # to the output. Let's use it.
@@ -375,7 +404,7 @@ class GASPredict(object):
         Input:
             inputs      A list of pre-processed factors/inputs that the model can accept
         Output:
-            responses   A list of values that the model predicts for the rows
+            responses   A list of values that the model predicts for the docs
         '''
         # Alamopy models come with a key, `f(model)`, that yields a lambda function to
         # transform the pre-processed input to the output. Let's use it.
@@ -393,18 +422,18 @@ class GASPredict(object):
             parameters_list     A list of `parameters` dictionaries that we may pass
                                 to GASpy
         '''
-        # We will be trimming the `self.site_rows` object. But in case the user wants to use
+        # We will be trimming the `self.site_docs` object. But in case the user wants to use
         # the same class instance to call a different method, we create a local copy of
-        # the rows object to trim and use.
-        rows = copy.deepcopy(self.site_rows)
+        # the docs object to trim and use.
+        docs = copy.deepcopy(self.site_docs)
 
-        # Post-process the rows; just read the method docstring for more details
-        rows = self._post_process(rows,
+        # Post-process the docs; just read the method docstring for more details
+        docs = self._post_process(docs,
                                   prioritization='random',
                                   max_predictions=max_predictions)
 
-        # Use the _make_parameters_list method to turn the list of rows into a list of parameters
-        return self._make_parameters_list(rows)
+        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
+        return self._make_parameters_list(docs)
 
 
     def matching_ads(self, adsorbate, max_predictions=10):
@@ -420,19 +449,19 @@ class GASPredict(object):
             parameters_list     A list of `parameters` dictionaries that we may pass
                                 to GASpy
         '''
-        # Instead of looking at `self.site_rows`, we'll instead start with `self.energy_rows`,
-        # since that list of rows contains relaxed rows
-        rows = copy.deepcopy(self.energy_rows)
+        # Instead of looking at `self.site_docs`, we'll instead start with `self.ads_docs`,
+        # since that list of docs contains relaxed docs
+        docs = copy.deepcopy(self.ads_docs)
         # Filter out anything that doesn't include the adsorbate we're looking at.
-        rows = [row for row in rows if row.adsorbate == adsorbate]
+        docs = [doc for doc in docs if doc['adsorbates'] == [adsorbate]]
 
-        # Post-process the rows; just read the method docstring for more details
-        rows = self._post_process(rows,
+        # Post-process the docs; just read the method docstring for more details
+        docs = self._post_process(docs,
                                   prioritization='random',
                                   max_predictions=max_predictions)
 
-        # Use the _make_parameters_list method to turn the list of rows into a list of parameters
-        return self._make_parameters_list(rows)
+        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
+        return self._make_parameters_list(docs)
 
 
     def energy_fr_coordcount_ads(self, prioritization='gaussian', max_predictions=0,
@@ -455,10 +484,10 @@ class GASPredict(object):
             parameters_list     A list of `parameters` dictionaries that we may pass
                                 to GASpy
         '''
-        # We will be trimming the `self.site_rows` object. But in case the user wants to use
+        # We will be trimming the `self.site_docs` object. But in case the user wants to use
         # the same class instance to call a different method, we create a local copy of
-        # the rows object to trim and use.
-        rows = copy.deepcopy(self.site_rows)
+        # the docs object to trim and use.
+        docs = copy.deepcopy(self.site_docs)
         # Pull in the pre-processors. This in not a necessary step, but it might help
         # readability later on.
         lb_coord = self.pre_processors['coordination']
@@ -470,22 +499,22 @@ class GASPredict(object):
         # numpy is stupid and we had to reshape/list things that are totally not intuitive.
         # Just go with it. Don't worry about it.
         p_coords = np.array([np.sum(lb_coord.transform(coord.split('-')), axis=0)
-                             for coord in [row.coordination for row in rows]])
+                             for coord in [docs['coordination'] for doc in docs]])
         p_ads = lb_ads.transform([self.adsorbate])[0]
         p_inputs = np.array([np.hstack((p_coord, p_ads)) for p_coord in p_coords])
-        # Predict the adsorption energies of our rows, and then trim any that lie outside
-        # the specified range. Note that we trim both the rows and their corresponding energies
+        # Predict the adsorption energies of our docs, and then trim any that lie outside
+        # the specified range. Note that we trim both the docs and their corresponding energies
         energies = self.predict(p_inputs)
         energy_mask = (-(energy_min < np.array(energies))-(np.array(energies) < energy_max))
-        rows = [rows[i] for i in np.where(energy_mask)[0].tolist()]
+        docs = [docs[i] for i in np.where(energy_mask)[0].tolist()]
         energies = [energies[i] for i in np.where(energy_mask)[0].tolist()]
 
-        # Post-process the rows; just read the method docstring for more details
-        rows = self._post_process(rows,
+        # Post-process the docs; just read the method docstring for more details
+        docs = self._post_process(docs,
                                   prioritization=prioritization,
                                   max_predictions=max_predictions,
                                   target=energy_target,
                                   values=energies)
 
-        # Use the _make_parameters_list method to turn the list of rows into a list of parameters
-        return self._make_parameters_list(rows)
+        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
+        return self._make_parameters_list(docs)
