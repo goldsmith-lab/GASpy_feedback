@@ -69,36 +69,33 @@ class GASPredict(object):
         self.adsorbate = adsorbate
         self.calc_settings = calc_settings
 
-        # Fetch mongo cursors for our adsorption and catalog databases so that we can
+        # Fetch mongo docs for our adsorption and catalog databases so that we can
         # start parsing out cataloged sites that we've already relaxed.
-        with utils.get_adsorption_db() as ads_db:
-            ads_cursor = utils.get_cursor(ads_db, 'adsorption',
-                                          calc_settings=calc_settings,
-                                          fingerprints=fingerprints,
-                                          adsorbates=[self.adsorbate])
-        with utils.get_catalog_db() as cat_db:
-            cat_cursor = utils.get_cursor(cat_db, 'catalog', fingerprints=fingerprints)
-        # Create copies of the cursors (which are generators) since we'll be using
-        # them more than once.
-        cat_cursor, _cat_cursor = itertools.tee(cat_cursor)
-        # Hash the cursors so that we can filter out any items in the catalog
+        with utils.get_adsorption_db() as ads_client:
+            ads_docs = utils.get_docs(ads_client, 'adsorption',
+                                      calc_settings=calc_settings,
+                                      fingerprints=fingerprints,
+                                      adsorbates=[self.adsorbate])[0]
+        with utils.get_catalog_db() as cat_client:
+            cat_docs = utils.get_docs(cat_client, 'catalog', fingerprints=fingerprints)[0]
+        # Hash the docs so that we can filter out any items in the catalog
         # that we have already relaxed. Note that we keep `ads_hash` in a dict so
         # that we can search through it, but we turn `cat_hash` into a list so that
-        # we can iterate through it alongside `cat_cursor`
-        ads_hash = self._hash_cursor(ads_cursor)
-        cat_hash = list(self._hash_cursor(cat_cursor).keys())
+        # we can iterate through it alongside `cat_docs`
+        ads_hash = self._hash_docs(ads_docs)
+        cat_hash = list(self._hash_docs(cat_docs).keys())
         # Perform the filtering while simultaneously creating `site_docs`
-        self.site_docs = [doc['_id'] for i, doc in enumerate(_cat_cursor)
+        self.site_docs = [doc for i, doc in enumerate(cat_docs)
                           if cat_hash[i] not in ads_hash]
 
         # Create `ads_docs` by finding all of the entries. Do so by not specifying
         # an adsorbate and by adding the `adsorbate` key to the fingerprint (and
         # thus the doc, as well).
-        ads_fp = utils.default_fingeprints()
+        ads_fp = defaults.fingerprints()
         ads_fp['adsorbates'] = '$processed_data.calculation_info.adsorbate_names'
-        self.ads_docs = [doc['_id'] for doc in utils.get_cursor(ads_db, 'adsorption',
-                                                                calc_settings=calc_settings,
-                                                                fingerprints=ads_fp)]
+        self.ads_docs = utils.get_docs(ads_client, 'adsorption',
+                                       calc_settings=calc_settings,
+                                       fingerprints=ads_fp)[0]
 
         # We put a conditional before we start working with the pickled model. This allows the
         # user to go straight for the "anything" method without needing to find a dummy model.
@@ -123,7 +120,7 @@ class GASPredict(object):
             print('No model provided. Only the "anything" or "matching_ads" methods will work.')
 
 
-    def _hash_cursor(self, cursor):
+    def _hash_docs(self, docs):
         '''
         This method helps convert the important characteristics of our systems into hashes
         so that we may sort through them more quickly. This is important to do when trying to
@@ -133,25 +130,22 @@ class GASPredict(object):
         Note that this method will consume whatever iterator it is given.
 
         Input:
-            cursor      A pymongo cursor object that has been created using `_get_cursor`.
-                        This method assumes that the `cursor` object was created by
-                        `collection.aggregate()`, because cursors from `collection.aggregate()`
-                        return dictionaries that are nested within the `_id` key.
-                        Normally-generated cursors will return actual IDs, not dicts.
+            docs    A mongo doc object that has been created using `_get_docs`; the unparsed
+                    version that is a list of dictionaries.
         Output:
-            systems     An ordered dictionary whose keys are hashes of the mongo doc
-                        returned by `cursor` and whose values are empty. This dictionary
-                        is intended to be parsed alongside the cursor, which is why it's
-                        ordered.
+            systems     An ordered dictionary whose keys are hashes of the each doc in
+                        `docs` and whose values are empty. This dictionary is intended
+                        to be parsed alongside another `docs` object, which is why
+                        it's ordered.
         '''
         systems = OrderedDict()
-        for doc in cursor:
+        for doc in docs:
             # `system` will be one long string of the fingerprints
             system = ''
-            for key, value in doc['_id'].iteritems():
+            for key, value in doc.iteritems():
                 # Note that we turn the values into strings explicitly, because some
                 # fingerprint features may not be strings (e.g., list of miller indices).
-                system += str(key + '=' + str(value) + ', ')
+                system += str(key + '=' + str(value) + '; ')
             systems[hash(system)] = None
 
         return systems
