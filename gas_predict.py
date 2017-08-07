@@ -63,7 +63,7 @@ class GASPredict(object):
         # Default value for fingerprints. Since it's a mutable dictionary, we define it
         # down here instead of in the __init__ line.
         if not fingerprints:
-            fingerprints = self.__default_fingeprints()
+            fingerprints = defaults.fingerprints()
 
         # Save some arguments to the object for later use
         self.adsorbate = adsorbate
@@ -72,12 +72,12 @@ class GASPredict(object):
         # Fetch mongo cursors for our adsorption and catalog databases so that we can
         # start parsing out cataloged sites that we've already relaxed.
         with utils.get_adsorption_db() as ads_db:
-            ads_cursor = self._get_cursor(ads_db, 'adsorption',
+            ads_cursor = utils.get_cursor(ads_db, 'adsorption',
                                           calc_settings=calc_settings,
                                           fingerprints=fingerprints,
                                           adsorbates=[self.adsorbate])
         with utils.get_catalog_db() as cat_db:
-            cat_cursor = self._get_cursor(cat_db, 'catalog', fingerprints=fingerprints)
+            cat_cursor = utils.get_cursor(cat_db, 'catalog', fingerprints=fingerprints)
         # Create copies of the cursors (which are generators) since we'll be using
         # them more than once.
         cat_cursor, _cat_cursor = itertools.tee(cat_cursor)
@@ -94,9 +94,9 @@ class GASPredict(object):
         # Create `ads_docs` by finding all of the entries. Do so by not specifying
         # an adsorbate and by adding the `adsorbate` key to the fingerprint (and
         # thus the doc, as well).
-        ads_fp = self.__default_fingeprints()
+        ads_fp = utils.default_fingeprints()
         ads_fp['adsorbates'] = '$processed_data.calculation_info.adsorbate_names'
-        self.ads_docs = [doc['_id'] for doc in self._get_cursor(ads_db, 'adsorption',
+        self.ads_docs = [doc['_id'] for doc in utils.get_cursor(ads_db, 'adsorption',
                                                                 calc_settings=calc_settings,
                                                                 fingerprints=ads_fp)]
 
@@ -121,83 +121,6 @@ class GASPredict(object):
                 raise Exception('We have not yet established how to deal with this type of model')
         else:
             print('No model provided. Only the "anything" or "matching_ads" methods will work.')
-
-
-    def __default_fingeprints(self):
-        '''
-        Returns a dictionary that is meant to be passed to mongo aggregators to create
-        new mongo docs. The keys here are the keys for the new mongo doc, and the values
-        are where you can find the information from the old mongo docs (in our databases).
-
-        Note that our code implicitly assumes an identical document structure between all
-        of the collections that it looks at.
-        '''
-        fingerprints = {'mpid': '$processed_data.calculation_info.mpid',
-                        'miller': '$processed_data.calculation_info.miller',
-                        'shift': '$processed_data.calculation_info.shift',
-                        'top': '$processed_data.calculation_info.top',
-                        'coordination': '$processed_data.fp_init.coordination',
-                        'neighborcoord': '$processed_data.fp_init.neighborcoord',
-                        'nextnearestcoordination': '$processed_data.fp_init.nextnearestcoordination'}
-        return fingerprints
-
-
-    def _get_cursor(self, client, collection_name, fingerprints,
-                    adsorbates=None, calc_settings=None):
-        '''
-        This method pulls out a set of fingerprints from a mongo client and returns
-        a mongo cursor (generator) object that returns the fingerprints
-
-        Inputs:
-            client              Mongo client object
-            collection_name     The collection name within the client that you want to look at
-            fingerprints        A dictionary of fingerprints and their locations in our
-                                mongo documents. For example:
-                                    fingerprints = {'mpid': '$processed_data.calculation_info.mpid',
-                                                    'coordination': '$processed_data.fp_init.coordination'}
-            adsorbates          A list of adsorbates that you want to find matches for
-            calc_settings       An optional argument that will only pull out data with these
-                                calc settings.
-        Output:
-            cursor  A mongo cursor object that can be iterated to return a dictionary
-                    of fingerprint properties
-        '''
-        # Put the "fingerprinting" into a `group` dictionary, which we will
-        # use to pull out data from the mongo database. Also, initialize
-        # a `match` dictionary, which we will use to filter results.
-        group = {'$group': {'_id': fingerprints}}
-        match = {'$match': {}}
-
-        # If the user provided calc_settings, then match only results that use
-        # this calc_setting.
-        if not calc_settings:
-            pass
-        elif calc_settings == 'rpbe':
-            match['$match']['processed_data.vasp_settings.gga'] = 'RP'
-        elif calc_settings == 'beef-vdw':
-            match['$match']['processed_data.vasp_settings.gga'] = 'BF'
-        else:
-            raise Exception('Unknown calc_settings')
-        # If the user specificed an adsorbate, then match only results from
-        # that adsorbate
-        if adsorbates:
-            match['$match']['processed_data.calculation_info.adsorbate_names'] = adsorbates
-        
-        # Compile the pipeline; add matches only if any matches are specified
-        if match['$match']:
-            pipeline = [match, group]
-        else:
-            pipeline = [group]
-
-        # Get the particular collection from the mongo client's database
-        collection = getattr(client.db, collection_name)
-
-        # Create the cursor. We set allowDiskUse=True to allow mongo to write to
-        # temporary files, which it needs to do for large databases. We also
-        # set useCursor=True so that `aggregate` returns a cursor object
-        # (otherwise we run into memory issues).
-        cursor = collection.aggregate(pipeline, allowDiskUse=True, useCursor=True)
-        return cursor
 
 
     def _hash_cursor(self, cursor):
