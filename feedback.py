@@ -35,7 +35,7 @@ import luigi
 
 #XC = 'beef-vdw'
 XC = 'rpbe'
-MODEL_LOC = '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/models/GP_model_energy_fr_coordcount_nncoord_adsorbate.pkl'
+MODEL_LOC = ''
 
 
 class CoordcountAdsToEnergy(luigi.WrapperTask):
@@ -107,7 +107,7 @@ class CoordcountNncToEnergy(luigi.WrapperTask):
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
                                      calc_settings=self.xc,
-                                     block=('CO',))
+                                     block=(self.ads_list[0],))
             parameters_list = gas_predict.energy_fr_coordcount_nnc(self.energy_min,
                                                                    self.energy_max,
                                                                    self.energy_target,
@@ -130,7 +130,6 @@ class MatchingAdslabs(luigi.WrapperTask):
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
     matching_ads = luigi.Parameter()
-    model_location = luigi.Parameter(MODEL_LOC)
     max_pred = luigi.IntParameter(10)
 
     def requires(self):
@@ -144,7 +143,7 @@ class MatchingAdslabs(luigi.WrapperTask):
         # because I'm too lazy to code it better.
         for ads in self.ads_list:
             gas_predict = GASPredict(adsorbate=ads,
-                                     pkl=self.model_location,
+                                     pkl='',
                                      calc_settings=self.xc)
             parameters_list = gas_predict.matching_ads(max_predictions=self.max_pred,
                                                        adsorbate=self.matching_ads)
@@ -175,9 +174,10 @@ class RandomAdslabs(luigi.WrapperTask):
         # max_predictions is actually max_predictions_per_adsorbate (i.e., if we MAX_PRED = 50
         # and len(ads_list) == 2, then we will have (50*2=) 100 predictions. I made it this way
         # because I'm too lazy to code it better.
-        for ads in ads_list:
+        for ads in self.ads_list:
             fingerprints = {'coordination': '$processed_data.fp_init.coordination'}
             gas_predict = GASPredict(adsorbate=ads,
+                                     pkl='',
                                      calc_settings=self.xc,
                                      fingerprints=fingerprints)
             parameters_list = gas_predict.anything(max_predictions=self.max_pred)
