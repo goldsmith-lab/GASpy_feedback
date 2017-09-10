@@ -107,7 +107,10 @@ class GASPredict(object):
             # Unpack the pickled model
             with open(pkl, 'rb') as f:
                 pkl = pickle.load(f)
-            self.model = pkl['model'][block]
+            try:
+                self.model = pkl['model'][block]
+            except KeyError:
+                raise Exception('The block %s is not in the model %s' %(block, pkl))
             self.pre_processors = pkl['pp']
             self.norm = pkl['norm']
 
