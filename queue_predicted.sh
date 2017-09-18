@@ -20,7 +20,7 @@ PYTHONPATH='.' luigi \
     --energy-target -0.55 \
     --max-pred 50 \
     --scheduler-host gilgamesh.cheme.cmu.edu  \
-    --workers=8 \
+    --workers=4 \
     --log-level=WARNING \
     --parallel-scheduling \
     --worker-timeout 300 
