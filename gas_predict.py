@@ -28,8 +28,9 @@ sys.path.insert(0, '../GASpy_regressions')
 
 
 class GASPredict(object):
-    def __init__(self, adsorbate, pkl=None, block='no_block',
-                 calc_settings='beef-vdw', fingerprints=None):
+    def __init__(self, adsorbate,
+                 pkl=None, features=None, block='no_block',
+                 calc_settings='rpbe', fingerprints=None):
         '''
         Here, we open the pickle. And then depending on the model type, we assign different
         methods to use for predicting data. For reference:  These models are created by
@@ -44,6 +45,8 @@ class GASPredict(object):
         that we don't try to re-submit calculations that we've already done.
 
         Input:
+            adsorbate       A string indicating the adsorbate that you want to make a
+                            prediction for.
             pkl             The location of a pickle dictionary object:
                                 'model' key should contain the model object.
                                 'pre_processors' key should contain a dictionary whose keys
@@ -52,17 +55,20 @@ class GASPredict(object):
                                  (e.g., LabelBinarizer)
                             Note that the user may provide '' for this argument, as well. This
                             should be done if the user wants to call the "anything" method.
+            features        A list of strings, where each string corresponds to the
+                            feature that should be fed into the model. Order matters, because
+                            the pre-processed features will be stacked in order of appearance
+                            in this list.
             block           The block of the model that we should be using. See
                             GASpy_regression's `regress.ipynb` for more details regarding
                             what a `block` could be.
-            adsorbate       A strings indicating the adsorbate that you want to make a
-                            prediction for.
             calc_settings   The calculation settings that we want to use. If we are using
                             something other than beef-vdw or rpbe, then we need to do some
                             more hard-coding here so that we know what in the local energy
                             database can work as a flag for this new calculation method.
             fingerprints    A dictionary of fingerprints and their locations in our
-                            mongo documents.
+                            mongo documents. This is how we can pull out more (or less)
+                            information from our database.
         '''
         # Default value for fingerprints. Since it's a mutable dictionary, we define it
         # down here instead of in the __init__ line.
@@ -102,7 +108,7 @@ class GASPredict(object):
                                        fingerprints=ads_fp)[0]
 
         # We put a conditional before we start working with the pickled model. This allows the
-        # user to go straight for the "anything" method without needing to find a dummy model.
+        # user to go straight for the `anything` method without needing to find a dummy model.
         if pkl:
             # Unpack the pickled model
             with open(pkl, 'rb') as f:
@@ -112,23 +118,19 @@ class GASPredict(object):
             except KeyError:
                 raise Exception('The block %s is not in the model %s' %(block, pkl))
             self.pre_processors = pkl['pp']
-            self.norm = pkl['norm']
+            norm = pkl['norm']
+            predictor = self._predictor()
 
-            # Figure out the model type and assign the correct method to perform predictions
-            if isinstance(self.model, type(LinearRegression())):
-                self.predict = self._sk_predict
-            elif isinstance(self.model, type(GradientBoostingRegressor())):
-                self.predict = self._sk_predict
-            elif isinstance(self.model, type(GaussianProcessRegressor())):
-                self.predict = self._sk_predict
-            elif isinstance(self.model, Pipeline):
-                self.predict = self._sk_predict
-            elif isinstance(self.model, dict):
-                self.predict = self._ala_predict
-            elif callable(self.model):
-                self.predict = self._hierarch_predict
-            else:
-                raise Exception('We have not yet established how to deal with this type of model')
+            # Pre-process, stack, and normalize the fingerprints into features so that
+            # they may be passed as arguments to the model
+            p_data = []
+            for feature in features:
+                p_data.append(self._preprocess_feature(feature))
+            model_inputs = np.array([np.hstack(_input) for _input in zip(*p_data)])/norm
+
+            # Predict the adsorption energies of our docs
+            self.energies = predictor(model_inputs)
+
         else:
             print('No model provided. Only the "anything" or "matching_ads" methods will work.')
 
@@ -164,8 +166,110 @@ class GASPredict(object):
         return systems
 
 
+    def _predictor(self):
+        '''
+        Each model type requires different methods/calls in order to be able to use
+        them to make predictions. To make model usage easier, this method will return
+        a function with a standardized input and standardized output. Below are the
+        standardized inputs and outputs.
+
+        Note that some models' inputs may deviate from this standard input. Refer
+        to the specific functions' docstrings for details.
+
+        Input:
+            inputs      A list of pre-processed factors/inputs that the model can accept
+        Output:
+            responses   A list of values that the model predicts for the docs
+        '''
+        def sk_predict(inputs):
+            ''' Assuming that the model in the pickle was an SKLearn model '''
+            # SK models come with a method, `predict`, to transform the pre-processed input
+            # to the output. Let's use it.
+            return self.model.predict(inputs)
+
+        # TODO:  Test this method
+        def ala_predict(inputs):
+            ''' Assuming that the model in the pickle was an alamopy model '''
+            # Alamopy models come with a key, `f(model)`, that yields a lambda function to
+            # transform the pre-processed input to the output. Let's use it.
+            return self.model['f(model)'](inputs)
+
+        # TODO:  Test this method
+        def hierarch_predict(inputs_outer, inputs_inner):
+            '''
+            Assuming that the model in the pickle is a function created by GASpy_regression's
+            `RegressionProcessor.hierarchical` method.
+
+            Inputs:
+                inputs_outer    A list of pre-processed factors/inputs that the outer model can accept.
+                inputs_inner    A list of pre-processed factors/inputs that the outer model can accept.
+            '''
+            return self.model(inputs_outer, inputs_inner)
+
+        # Figure out the model type and assign the correct function to perform predictions
+        if isinstance(self.model, type(LinearRegression())):
+            predictor = sk_predict
+        elif isinstance(self.model, type(GradientBoostingRegressor())):
+            predictor = sk_predict
+        elif isinstance(self.model, type(GaussianProcessRegressor())):
+            predictor = sk_predict
+        elif isinstance(self.model, Pipeline):
+            predictor = sk_predict
+        elif isinstance(self.model, dict):
+            predictor = ala_predict
+        elif callable(self.model):
+            predictor = hierarch_predict
+        else:
+            raise Exception('We have not yet established how to deal with this type of model')
+
+        return predictor
+
+
+    def _preprocess_feature(self, feature):
+        '''
+        This method will pre-process whatever data the user wants. This helps turn
+        "raw" data into numerical data that is accepted by models.
+
+        Input:
+            feature A string that represents the type of feature that
+                    you want to pull out of the fingerprints. See the
+                    `GASpy_regressions` repository for more details.
+        Output:
+            p_data  A numpy array of pre-processed data. Each row represents
+                    a new site, and each column represents a new numerical value
+                    (depending on whatever the feature is).
+        '''
+        docs = self.site_docs
+
+        if feature == 'coordcount':
+            # lb = label binarizer (to turn the coordination into an array of sparse
+            # binaries)
+            lb = self.pre_processors['coordination']
+            p_data = np.array([np.sum(lb.transform(coord.split('-')), axis=0)
+                               for coord in [doc['coordination'] for doc in docs]])
+
+        elif feature == 'ads':
+            # lb = label binarizer (to turn the adsorbate into a vector of sparse
+            # binaries)
+            lb = self.pre_processors['adsorbate']
+            p_data = lb.transform([self.adsorbate])[0]
+
+        elif feature == 'nnc_count':
+            # lb = label binarizer (to turn the nextnearestcoordination into an
+            # array of sparse binaries)
+            lb = self.pre_processors['nextnearestcoordination']
+            p_data = np.array([np.sum(lb.transform(coord.split('-')), axis=0)
+                               for coord in [doc['nextnearestcoordination'] for doc in docs]])
+
+        else:
+            raise Exception('That type of feature is not recognized')
+
+        return p_data
+
+
     def _make_parameters_list(self, docs, prioritization, max_predictions,
                               target=None, values=None, n_sigmas=6):
+        # pylint: disable=too-many-statements, too-many-branches
         '''
         Given the remaining mongo doc objects, this method will decide which of those
         docs to return for further relaxations. We do this in two steps:  1) choose and
@@ -200,6 +304,7 @@ class GASPredict(object):
             # Treat max_predictions==0 as no limit
             if max_predictions == 0:
                 pass
+            # TODO:  Address this if we ever address the top/bottom issue
             # We trim to half of max_predictions right now, because _make_parameters_list
             # currently creates two sets of parameters per system (i.e., top and bottom).
             # It's set up like this right now because our Local enumerated site DB is
@@ -310,52 +415,6 @@ class GASPredict(object):
         return parameters_list
 
 
-    def _sk_predict(self, inputs):
-        '''
-        Assuming that the model in the pickle was an SKLearn model, predict the model's
-        output given the pre-processed inputs
-
-        Input:
-            inputs      A list of pre-processed factors/inputs that the model can accept
-        Output:
-            responses   A list of values that the model predicts for the docs
-        '''
-        # SK models come with a method, `predict`, to transform the pre-processed input
-        # to the output. Let's use it.
-        return self.model.predict(inputs)
-
-
-    # TODO:  Test this method
-    def _ala_predict(self, inputs):
-        '''
-        Assuming that the model in the pickle was an alamopy model, predict the model's
-        output given the pre-processed inputs
-
-        Input:
-            inputs      A list of pre-processed factors/inputs that the model can accept
-        Output:
-            responses   A list of values that the model predicts for the docs
-        '''
-        # Alamopy models come with a key, `f(model)`, that yields a lambda function to
-        # transform the pre-processed input to the output. Let's use it.
-        return self.model['f(model)'](inputs)
-
-
-    # TODO:  Test this method
-    def _hierarch_predict(self, inputs_outer, inputs_inner):
-        '''
-        Assuming that the model in the pickle is a function created by GASpy_regression's
-        `RegressionProcessor.hierarchical` method.
-
-        Input:
-            inputs_outer    A list of pre-processed factors/inputs that the outer model can accept.
-            inputs_inner    A list of pre-processed factors/inputs that the outer model can accept.
-        Output:
-            responses   A list of values that the model predicts for the docs
-        '''
-        return self.model(inputs_outer, inputs_inner)
-
-
     def anything(self, max_predictions=10):
         '''
         Call this method if you want n=`max_predictions` completely random things use in
@@ -407,47 +466,30 @@ class GASPredict(object):
         return parameters_list
 
 
-    def energy_fr_coordcount_ads(self, energy_min, energy_max, energy_target,
-                                 prioritization='gaussian', max_predictions=0):
+    def parameters(self, energy_min, energy_max, energy_target,
+                   prioritization='gaussian', max_predictions=20):
         '''
-        The user must call this method to return the list of GASpy `parameters` objects
-        to run.
-
         Input:
-            prioritization  A string that we pass to the `_sort` method. Reference that
-                            method for more details.
-            max_predictions A maximum value for the number of sets of `parameters` we should
-                            return in `parameters_list`. If set to 0, then there is no limit.
             energy_min      The lower-bound of the adsorption energy window that we want
                             to predict around (eV)
             energy_max      The upper-bound of the adsorption energy window that we want to
                             predict around (eV)
             energy_target   The adsorption energy we want to "hit" (eV)
-        Outut:
+            prioritization  A string that we pass to the `_sort` method. Reference that
+                            method for more details.
+            max_predictions A maximum value for the number of sets of `parameters` we should
+                            return in `parameters_list`. If set to 0, then there is no limit.
+        Output:
             parameters_list     A list of `parameters` dictionaries that we may pass
                                 to GASpy
         '''
         # We will be trimming the `self.site_docs` object. But in case the user wants to use
         # the same class instance to call a different method, we create a local copy of
-        # the docs object to trim and use.
+        # the docs object to trim and use. Then we do the same for the energies
         docs = copy.deepcopy(self.site_docs)
-        # Pull in the pre-processors. This in not a necessary step, but it might help
-        # readability later on.
-        lb_coord = self.pre_processors['coordination']
-        lb_ads = self.pre_processors['adsorbate']
+        energies = copy.deepcopy(self.energies)
 
-        # Pre-process the coordination and the adsorbate, and then stack them together so that
-        # they may be accepted as direct inputs to the model. This should be identical to the
-        # pre-processing performed in GASpy_regresson's `regress.ipynb`. But it isn't, because
-        # numpy is stupid and we had to reshape/list things that are totally not intuitive.
-        # Just go with it. Don't worry about it.
-        p_coords = np.array([np.sum(lb_coord.transform(coord.split('-')), axis=0)
-                             for coord in [doc['coordination'] for doc in docs]])
-        p_ads = lb_ads.transform([self.adsorbate])[0]
-        p_inputs = np.array([np.hstack((p_coord, p_ads)) for p_coord in p_coords])
-        # Predict the adsorption energies of our docs, and then trim any that lie outside
-        # the specified range. Note that we trim both the docs and their corresponding energies
-        energies = self.predict(p_inputs)
+        # Trim the energies and mongo documents according to our energy boundaries
         energy_mask = (-(energy_min < np.array(energies))-(np.array(energies) < energy_max))
         docs = [docs[i] for i in np.where(energy_mask)[0].tolist()]
         energies = [energies[i] for i in np.where(energy_mask)[0].tolist()]
@@ -459,65 +501,4 @@ class GASPredict(object):
                                                      target=energy_target,
                                                      values=energies)
 
-        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
-        return parameters_list
-
-
-    def energy_fr_coordcount_nnc(self, energy_min, energy_max, energy_target,
-                                 prioritization='gaussian', max_predictions=0):
-        '''
-        The user must call this method to return the list of GASpy `parameters` objects
-        to run. Note that this method assumes that `self.model` was created from
-        GASpy_regression's `RegressionProcessor.hierarchical` method. As such, it accepts
-        two methods instead of one.
-
-        Input:
-            prioritization  A string that we pass to the `_sort` method. Reference that
-                            method for more details.
-            max_predictions A maximum value for the number of sets of `parameters` we should
-                            return in `parameters_list`. If set to 0, then there is no limit.
-            energy_min      The lower-bound of the adsorption energy window that we want
-                            to predict around (eV)
-            energy_max      The upper-bound of the adsorption energy window that we want to
-                            predict around (eV)
-            energy_target   The adsorption energy we want to "hit" (eV)
-        Outut:
-            parameters_list     A list of `parameters` dictionaries that we may pass
-                                to GASpy
-        '''
-        # We will be trimming the `self.site_docs` object. But in case the user wants to use
-        # the same class instance to call a different method, we create a local copy of
-        # the docs object to trim and use.
-        docs = copy.deepcopy(self.site_docs)
-        # Pull in the pre-processors and the norm, which we need to pre-process the
-        # fingerprints into a form that the model can accept.
-        lb_coord = self.pre_processors['coordination']
-        lb_nnc = self.pre_processors['nextnearestcoordination']
-        norm = self.norm
-
-        # Pre-process the coordination and nextnearestcoordination, then stack and normalize
-        # them so that they can be fed into the model
-        p_coords = np.array([np.sum(lb_coord.transform(coord.split('-')), axis=0)
-                             for coord in [doc['coordination'] for doc in docs]])
-        p_nnc = np.array([np.sum(lb_nnc.transform(coord.split('-')), axis=0)
-                          for coord in [doc['nextnearestcoordination'] for doc in docs]])
-        model_inputs = np.array([np.hstack((p_coord, p_nnc[i]))
-                                 for i, p_coord in enumerate(p_coords)])
-        model_inputs = model_inputs/norm
-
-        # Predict the adsorption energies of our docs, and then trim any that lie outside
-        # the specified range. Note that we trim both the docs and their corresponding energies
-        energies = self.predict(model_inputs)
-        energy_mask = (-(energy_min < np.array(energies))-(np.array(energies) < energy_max))
-        docs = [docs[i] for i in np.where(energy_mask)[0].tolist()]
-        energies = [energies[i] for i in np.where(energy_mask)[0].tolist()]
-
-        # Post-process the docs; just read the method docstring for more details
-        parameters_list = self._make_parameters_list(docs,
-                                                     prioritization=prioritization,
-                                                     max_predictions=max_predictions,
-                                                     target=energy_target,
-                                                     values=energies)
-
-        # Use the _make_parameters_list method to turn the list of docs into a list of parameters
         return parameters_list

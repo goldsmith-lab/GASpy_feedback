@@ -1,3 +1,4 @@
+# pylint: disable=unsubscriptable-object
 '''
 This script contains classes/tasks for Luigi to execute.
 
@@ -64,7 +65,48 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
         '''
         # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
         # max_predictions is actually max_predictions_per_adsorbate
-        for ads in self.ads_list:
+        for ads in self.ads_list:   # pylint: disable=not-an-iterable
+            gas_predict = GASPredict(adsorbate=ads,
+                                     pkl=self.model_location,
+                                     features=['coordcount', 'ads'],
+                                     calc_settings=self.xc)
+            parameters_list = gas_predict.energy_fr_coordcount_ads(energy_min=self.energy_min,
+                                                                   energy_max=self.energy_max,
+                                                                   energy_target=self.energy_target,
+                                                                   prioritization=self.priority,
+                                                                   max_predictions=self.max_pred)
+            for parameters in parameters_list:
+                yield FingerprintRelaxedAdslab(parameters=parameters)
+
+
+# TODO:  Fix `gas_predict.py` to do this correctly... and probably fix this, too.
+class HierarchicalCoordcountAdsNncToEnergy(luigi.WrapperTask):
+    '''
+    Before Luigi does anything, let's declare this task's arguments and establish defaults.
+    These may be overridden on the command line when calling Luigi. If not, we pull them from
+    above (or below).
+
+    Note that the pickled models should probably be updated as well. But instead of re-running
+    the regression here, our current setup has use using Cron to periodically re-run the
+    regression (and overwriting the old model pickle with the new one).
+    '''
+    xc = luigi.Parameter(XC)
+    ads_list = luigi.ListParameter()
+    model_location = luigi.Parameter(MODEL_LOC)
+    priority = luigi.Parameter('gaussian')
+    energy_min = luigi.Parameter(-4)
+    energy_max = luigi.Parameter(4)
+    energ_target = luigi.Parameter(-0.55)
+    max_pred = luigi.IntParameter(10)
+
+    def requires(self):
+        '''
+        Here, we use the GASPredict class to identify the list of parameters that we can use
+        to run the next set of relaxations.
+        '''
+        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
+        # max_predictions is actually max_predictions_per_adsorbate
+        for ads in self.ads_list:   # pylint: disable=not-an-iterable
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
                                      calc_settings=self.xc)
@@ -103,16 +145,17 @@ class CoordcountNncToEnergy(luigi.WrapperTask):
         '''
         # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
         # max_predictions is actually max_predictions_per_adsorbate
-        for ads in self.ads_list:
+        for ads in self.ads_list:   # pylint: disable=not-an-iterable
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl=self.model_location,
-                                     calc_settings=self.xc,
-                                     block=(self.ads_list[0],))
-            parameters_list = gas_predict.energy_fr_coordcount_nnc(self.energy_min,
-                                                                   self.energy_max,
-                                                                   self.energy_target,
-                                                                   max_predictions=self.max_pred,
-                                                                   prioritization=self.priority)
+                                     features=['coordcount', 'nnc_count'],
+                                     block=(self.ads_list[0],),
+                                     calc_settings=self.xc)
+            parameters_list = gas_predict.parameters(energy_min=self.energy_min,
+                                                     energy_max=self.energy_max,
+                                                     energy_target=self.energy_target,
+                                                     prioritization=self.priority,
+                                                     max_predictions=self.max_pred)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
@@ -141,7 +184,7 @@ class MatchingAdslabs(luigi.WrapperTask):
         # max_predictions is actually max_predictions_per_adsorbate (i.e., if we MAX_PRED = 50
         # and len(ads_list) == 2, then we will have (50*2=) 100 predictions. I made it this way
         # because I'm too lazy to code it better.
-        for ads in self.ads_list:
+        for ads in self.ads_list:       # pylint: disable=not-an-iterable
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl='',
                                      calc_settings=self.xc)
@@ -174,7 +217,7 @@ class RandomAdslabs(luigi.WrapperTask):
         # max_predictions is actually max_predictions_per_adsorbate (i.e., if we MAX_PRED = 50
         # and len(ads_list) == 2, then we will have (50*2=) 100 predictions. I made it this way
         # because I'm too lazy to code it better.
-        for ads in self.ads_list:
+        for ads in self.ads_list:       # pylint: disable=not-an-iterable
             fingerprints = {'coordination': '$processed_data.fp_init.coordination'}
             gas_predict = GASPredict(adsorbate=ads,
                                      pkl='',
