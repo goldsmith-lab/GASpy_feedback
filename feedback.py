@@ -53,9 +53,9 @@ class CoordcountAdsToEnergy(luigi.WrapperTask):
     ads_list = luigi.ListParameter()
     model_location = luigi.Parameter(MODEL_LOC)
     priority = luigi.Parameter('gaussian')
-    energy_min = luigi.Parameter(-4)
-    energy_max = luigi.Parameter(4)
-    energ_target = luigi.Parameter(-0.55)
+    energy_min = luigi.FloatParameter(-4)
+    energy_max = luigi.FloatParameter(4)
+    energ_target = luigi.FloatParameter(-0.55)
     max_pred = luigi.IntParameter(10)
 
     def requires(self):
