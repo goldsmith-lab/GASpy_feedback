@@ -1,228 +1,115 @@
 # pylint: disable=unsubscriptable-object
 '''
-This script contains classes/tasks for Luigi to execute.
+These tasks use the `create_parameters` module to determine what systems
+to simulate next, and then it submits the simulations. There are different
+tasks for each type of selection style.
 
-These tasks use the `GASPredict` class in this submodule to determine what systems
-to relax next, and then it performs the relaxation.
-
-Here is a list of a lot of the inputs used in the various tasks:
-    xc              Exchange correlational
-    ads_list        The adsorbate(s) you want to look at
-    model_location  The location of the pickled model we want to use for the feedback
-                    loop. Include the name of the file, as well.
-    priority        The prioritization (i.e., method of choosing the next relaxation).
-                    Can be:
-                        anything
-                        targeted
-                        random
-                        gaussian
-    energy_min      The minimum (predicted) adsorption energy of systems you want to simulate
-    energy_max      The maximum (predicted) adsorption energy of systems you want to simulate
-    energy_target   The target adsorption energy you want to simulate
-    max_pred        The maximum number of predictions that we want to sen through the
-                    feedback loop. Note that the total number of submissions will still
-                    be MAX_PRED*len(ads_list)
+For more information regarding all of the task arguments, please
+refer to the respective functions that each tasks calls from `create_parameters`.
 '''
+
 __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
-# Since this is in a submodule, we add the parent folder to the python path
+
 import pdb
 import sys
-from gas_predict import GASPredict
+import luigi
+import create_parameters as c_param
 sys.path.insert(0, '../')
 from tasks import FingerprintRelaxedAdslab
-import luigi
 
 
 #XC = 'beef-vdw'
 XC = 'rpbe'
-MODEL_LOC = ''
 
 
-class CoordcountAdsToEnergy(luigi.WrapperTask):
+class RandomAdslabs(luigi.WrapperTask):
     '''
-    Before Luigi does anything, let's declare this task's arguments and establish defaults.
-    These may be overridden on the command line when calling Luigi. If not, we pull them from
-    above (or below).
-
-    Note that the pickled models should probably be updated as well. But instead of re-running
-    the regression here, our current setup has use using Cron to periodically re-run the
-    regression (and overwriting the old model pickle with the new one).
+    Use the `create_parameters.randomly` function to create a list of GASpy
+    parameters, then submit them for simulation
     '''
+    # Set default values
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
-    model_location = luigi.Parameter(MODEL_LOC)
-    priority = luigi.Parameter('gaussian')
-    energy_min = luigi.FloatParameter(-4)
-    energy_max = luigi.FloatParameter(4)
-    energ_target = luigi.FloatParameter(-0.55)
-    max_pred = luigi.IntParameter(10)
+    max_submit = luigi.IntParameter(20)
 
     def requires(self):
-        '''
-        Here, we use the GASPredict class to identify the list of parameters that we can use
-        to run the next set of relaxations.
-        '''
-        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
-        # max_predictions is actually max_predictions_per_adsorbate
-        for ads in self.ads_list:   # pylint: disable=not-an-iterable
-            gas_predict = GASPredict(adsorbate=ads,
-                                     pkl=self.model_location,
-                                     features=['coordcount', 'ads'],
-                                     calc_settings=self.xc)
-            parameters_list = gas_predict.energy_fr_coordcount_ads(energy_min=self.energy_min,
-                                                                   energy_max=self.energy_max,
-                                                                   energy_target=self.energy_target,
-                                                                   prioritization=self.priority,
-                                                                   max_predictions=self.max_pred)
-            for parameters in parameters_list:
-                yield FingerprintRelaxedAdslab(parameters=parameters)
+        ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
+        # Find out how many adsorbates the user wants to be simulating. This helps us figure
+        # out how many parameters we should be pulling out for each adsorbate.
+        n_ads = len(self.ads_list)
+        submit_per_ads = self.max_submit/n_ads
 
-
-# TODO:  Fix `gas_predict.py` to do this correctly... and probably fix this, too.
-class HierarchicalCoordcountAdsNncToEnergy(luigi.WrapperTask):
-    '''
-    Before Luigi does anything, let's declare this task's arguments and establish defaults.
-    These may be overridden on the command line when calling Luigi. If not, we pull them from
-    above (or below).
-
-    Note that the pickled models should probably be updated as well. But instead of re-running
-    the regression here, our current setup has use using Cron to periodically re-run the
-    regression (and overwriting the old model pickle with the new one).
-    '''
-    xc = luigi.Parameter(XC)
-    ads_list = luigi.ListParameter()
-    model_location = luigi.Parameter(MODEL_LOC)
-    priority = luigi.Parameter('gaussian')
-    energy_min = luigi.Parameter(-4)
-    energy_max = luigi.Parameter(4)
-    energ_target = luigi.Parameter(-0.55)
-    max_pred = luigi.IntParameter(10)
-
-    def requires(self):
-        '''
-        Here, we use the GASPredict class to identify the list of parameters that we can use
-        to run the next set of relaxations.
-        '''
-        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
-        # max_predictions is actually max_predictions_per_adsorbate
-        for ads in self.ads_list:   # pylint: disable=not-an-iterable
-            gas_predict = GASPredict(adsorbate=ads,
-                                     pkl=self.model_location,
-                                     calc_settings=self.xc)
-            parameters_list = gas_predict.energy_fr_coordcount_ads(self.energy_min,
-                                                                   self.energy_max,
-                                                                   self.energy_target,
-                                                                   max_predictions=self.max_pred,
-                                                                   prioritization=self.priority)
-            for parameters in parameters_list:
-                yield FingerprintRelaxedAdslab(parameters=parameters)
-
-
-class CoordcountNncToEnergy(luigi.WrapperTask):
-    '''
-    Before Luigi does anything, let's declare this task's arguments and establish defaults.
-    These may be overridden on the command line when calling Luigi. If not, we pull them from
-    above (or below).
-
-    Note that the pickled models should probably be updated as well. But instead of re-running
-    the regression here, our current setup has use using Cron to periodically re-run the
-    regression (and overwriting the old model pickle with the new one).
-    '''
-    xc = luigi.Parameter(XC)
-    ads_list = luigi.ListParameter()
-    model_location = luigi.Parameter(MODEL_LOC)
-    priority = luigi.Parameter('gaussian')
-    energy_min = luigi.FloatParameter(-4.)
-    energy_max = luigi.FloatParameter(4.)
-    energy_target = luigi.FloatParameter(-0.55)
-    max_pred = luigi.IntParameter(10)
-
-    def requires(self):
-        '''
-        Here, we use the GASPredict class to identify the list of parameters that we can use
-        to run the next set of relaxations.
-        '''
-        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
-        # max_predictions is actually max_predictions_per_adsorbate
-        for ads in self.ads_list:   # pylint: disable=not-an-iterable
-            gas_predict = GASPredict(adsorbate=ads,
-                                     pkl=self.model_location,
-                                     features=['coordcount', 'nnc_count'],
-                                     block=(self.ads_list[0],),
-                                     calc_settings=self.xc)
-            parameters_list = gas_predict.parameters(energy_min=self.energy_min,
-                                                     energy_max=self.energy_max,
-                                                     energy_target=self.energy_target,
-                                                     prioritization=self.priority,
-                                                     max_predictions=self.max_pred)
+        for ads in self.ads_list:       # pylint: disable=not-an-iterable
+            parameters_list = c_param.randomly(ads, calc_settings=self.xc,
+                                               max_predictions=submit_per_ads)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
 
 class MatchingAdslabs(luigi.WrapperTask):
     '''
-    Before Luigi does anything, let's declare this task's arguments and establish defaults.
-    These may be overridden on the command line when calling Luigi. If not, we pull them from
-    above.
+    Use the `create_parameters.from_matching_ads` function to create a list of GASpy
+    parameters, then submit them for simulation.
 
-    Note that the pickled models should probably be updated as well. But instead of re-running
-    the regression here, our current setup has use using Cron to periodically re-run the
-    regression (and re-pickling the new model).
+    Note that `matching_ads` is a string indicating the adsorbate you want to "copy",
+    while `ads_list` is a list of the adsorbates that you want to make submissions for.
     '''
+    # Set default values
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
     matching_ads = luigi.Parameter()
-    max_pred = luigi.IntParameter(10)
+    max_submit = luigi.IntParameter(20)
 
     def requires(self):
-        '''
-        Here, we use the GASPredict class to identify the list of parameters that we can use
-        to run the next set of relaxations.
-        '''
-        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
-        # max_predictions is actually max_predictions_per_adsorbate (i.e., if we MAX_PRED = 50
-        # and len(ads_list) == 2, then we will have (50*2=) 100 predictions. I made it this way
-        # because I'm too lazy to code it better.
+        ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
+        # Find out how many adsorbates the user wants to be simulating. This helps us figure
+        # out how many parameters we should be pulling out for each adsorbate.
+        n_ads = len(self.ads_list)
+        submit_per_ads = self.max_submit/n_ads
+
         for ads in self.ads_list:       # pylint: disable=not-an-iterable
-            gas_predict = GASPredict(adsorbate=ads,
-                                     pkl='',
-                                     calc_settings=self.xc)
-            parameters_list = gas_predict.matching_ads(max_predictions=self.max_pred,
-                                                       adsorbate=self.matching_ads)
+            parameters_list = c_param.from_matching_ads(ads, self.matching_ads,
+                                                        calc_settings=self.xc,
+                                                        max_predictions=submit_per_ads)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
 
-class RandomAdslabs(luigi.WrapperTask):
+class Predictions(luigi.WrapperTask):
     '''
-    Before Luigi does anything, let's declare this task's arguments and establish defaults.
-    These may be overridden on the command line when calling Luigi. If not, we pull them from
-    above.
-
-    Note that the pickled models should probably be updated as well. But instead of re-running
-    the regression here, our current setup has use using Cron to periodically re-run the
-    regression (and re-pickling the new model).
+    Use the `create_parameters.from_predictions` function to create a list of GASpy
+    parameters, then submit them for simulation
     '''
-    xc = luigi.Parameter(XC)
+    # Set default values
     ads_list = luigi.ListParameter()
-    max_pred = luigi.IntParameter(10)
+    prediction_min = luigi.FloatParameter(-4.)
+    prediction_target = luigi.FloatParameter()
+    prediction_max = luigi.FloatParameter(4.)
+    model_location = luigi.Parameter()
+    block = luigi.Parameter('no_block')
+    xc = luigi.Parameter(XC)
+    max_submit = luigi.IntParameter(20)
+    priority = luigi.Parameter('gaussian')
+    n_sigmas = luigi.FloatParameter(6.)
 
     def requires(self):
-        '''
-        Here, we use the GASPredict class to identify the list of parameters that we can use
-        to run the next set of relaxations.
-        '''
-        # We need to create a new instance of the gas_predictor for each adsorbate. Thus,
-        # max_predictions is actually max_predictions_per_adsorbate (i.e., if we MAX_PRED = 50
-        # and len(ads_list) == 2, then we will have (50*2=) 100 predictions. I made it this way
-        # because I'm too lazy to code it better.
-        for ads in self.ads_list:       # pylint: disable=not-an-iterable
-            fingerprints = {'coordination': '$processed_data.fp_init.coordination'}
-            gas_predict = GASPredict(adsorbate=ads,
-                                     pkl='',
-                                     calc_settings=self.xc,
-                                     fingerprints=fingerprints)
-            parameters_list = gas_predict.anything(max_predictions=self.max_pred)
+        ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
+        # Find out how many adsorbates the user wants to be simulating. This helps us figure
+        # out how many parameters we should be pulling out for each adsorbate.
+        n_ads = len(self.ads_list)
+        submit_per_ads = self.max_submit/n_ads
+
+        for ads in self.ads_list:   # pylint: disable=not-an-iterable
+            parameters_list = c_param.from_predictions(ads,
+                                                       self.prediction_min,
+                                                       self.prediction_target,
+                                                       self.prediction_max,
+                                                       pkl=self.model_location,
+                                                       block=self.block,
+                                                       calc_settings=self.xc,
+                                                       max_predictions=submit_per_ads,
+                                                       prioritization=self.priority,
+                                                       n_sigmas=self.n_sigmas)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
