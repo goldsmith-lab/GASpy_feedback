@@ -19,7 +19,7 @@ PYTHONPATH='.' luigi \
     --model-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/TPOT_FEATURES_coordcount_ads_RESPONSES_energy_BLOCKS_.pkl' \
     --xc 'rpbe' \
     --max-submit 20 \
-    --scheduler-host gilgamesh.cheme.cmu.edu  \
+    --scheduler-host 128.55.224.39 \
     --workers=4 \
     --log-level=WARNING \
     --parallel-scheduling \
