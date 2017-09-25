@@ -9,7 +9,7 @@
 #SBATCH --constraint=haswell
 
 module load python
-cd /global/project/projectdirs/m2755/GASpy/GASpy_predict
+cd /global/project/projectdirs/m2755/GASpy/GASpy_feedback
 source activate /project/projectdirs/m2755/GASpy_conda/
 
 PYTHONPATH='.' luigi \
@@ -18,7 +18,7 @@ PYTHONPATH='.' luigi \
     --prediction-target -0.55 \
     --model-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/TPOT_FEATURES_coordcount_ads_RESPONSES_energy_BLOCKS_.pkl' \
     --xc 'rpbe' \
-    --max-submit 20 \
+    --max-submit 1000 \
     --scheduler-host 128.55.224.39 \
     --workers=4 \
     --log-level=WARNING \
