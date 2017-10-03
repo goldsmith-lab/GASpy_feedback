@@ -21,20 +21,18 @@ Output:
 __author__ = 'Kevin Tran'
 __email__ = 'ktran@andrew.cmu.edu'
 
-import pdb
+import pdb  # noqa:  F401
 import sys
-import copy
 import random
-from pprint import pprint
 import numpy as np
 import scipy as sp
 import dill as pickle
-pickle.settings['recurse'] = True     # required to pickle lambdify functions
 sys.path.insert(0, '../')
-from gaspy import defaults
-from gaspy import utils
+from gaspy import defaults  # noqa:  E402
+from gaspy import utils     # noqa:  E402
 sys.path.insert(0, '../GASpy_regressions')
-import regressor
+from regressor import GASpyRegressor    # noqa:  E402
+pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
 
 def randomly(adsorbate, calc_settings='rpbe', max_predictions=20):
@@ -117,15 +115,19 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
         regressor = pickle.load(f)
     # Catalog documents don't have any information about adsorbates. But if our
     # model requires information about adsorbates, then we probably need to put
-    # it in.
-    if 'ads' in regressor.features:
-        p_docs['adsorbates'] = [[adsorbate]]*len(docs)
+    # it in. Note that we wrap an EAFP around it to check for hierarchical models.
+    try:
+        if 'ads' in regressor.features + regressor.features_inner:
+            p_docs['adsorbates'] = [[adsorbate]] * len(docs)
+    except AttributeError:
+        if 'ads' in regressor.features:
+            p_docs['adsorbates'] = [[adsorbate]] * len(docs)
     # Make the predictions
     predictions = regressor.predict(p_docs, block)
 
     # Trim the mongo documents and the predictions according to our prediction boundaries
-    prediction_mask = (-(prediction_min < np.array(predictions)) - \
-                        (np.array(predictions) < prediction_max))
+    prediction_mask = (-(prediction_min < np.array(predictions)) -
+                       (np.array(predictions) < prediction_max))
     docs = [docs[i] for i in np.where(prediction_mask)[0].tolist()]
     predictions = [predictions[i] for i in np.where(prediction_mask)[0].tolist()]
 
@@ -174,7 +176,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
     '''
     # pylint: disable=too-many-branches, too-many-arguments
     # TODO:  Remove the divisor when we figure out how to keep top/bottom consistent
-    if len(docs) <= max_predictions/2:
+    if len(docs) <= max_predictions / 2:
         '''
         If we have less choices than the max number of predictions, then
         just move on. We divide by two because we're currently submitting top+bottom
@@ -228,7 +230,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; rename
         # it p, and call np.random.choice
         p = (pdf_eval/sum(pdf_eval)).tolist()
-        docs = np.random.choice(docs, size=max_predictions/2, replace=False, p=p) # pylint: disable=no-member
+        docs = np.random.choice(docs, size=max_predictions/2, replace=False, p=p)  # pylint: disable=no-member
 
     else:
         raise Exception('User did not provide a valid prioritization')
