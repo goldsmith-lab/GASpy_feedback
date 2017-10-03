@@ -1,4 +1,3 @@
-# pylint: disable=unsubscriptable-object
 '''
 These tasks use the `create_parameters` module to determine what systems
 to simulate next, and then it submits the simulations. There are different
@@ -7,19 +6,20 @@ tasks for each type of selection style.
 For more information regarding all of the task arguments, please
 refer to the respective functions that each tasks calls from `create_parameters`.
 '''
+# pylint: disable=unsubscriptable-object
 
 __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
 
-import pdb
+import pdb  # noqa:  F401
 import sys
 import luigi
 import create_parameters as c_param
 sys.path.insert(0, '../')
-from tasks import FingerprintRelaxedAdslab
+from tasks import FingerprintRelaxedAdslab  # noqa:  E401
 
 
-#XC = 'beef-vdw'
+# XC = 'beef-vdw'
 XC = 'rpbe'
 
 
@@ -38,7 +38,7 @@ class RandomAdslabs(luigi.WrapperTask):
         # Find out how many adsorbates the user wants to be simulating. This helps us figure
         # out how many parameters we should be pulling out for each adsorbate.
         n_ads = len(self.ads_list)
-        submit_per_ads = self.max_submit/n_ads
+        submit_per_ads = self.max_submit / n_ads
 
         for ads in self.ads_list:       # pylint: disable=not-an-iterable
             parameters_list = c_param.randomly(ads, calc_settings=self.xc,
@@ -66,7 +66,7 @@ class MatchingAdslabs(luigi.WrapperTask):
         # Find out how many adsorbates the user wants to be simulating. This helps us figure
         # out how many parameters we should be pulling out for each adsorbate.
         n_ads = len(self.ads_list)
-        submit_per_ads = self.max_submit/n_ads
+        submit_per_ads = self.max_submit / n_ads
 
         for ads in self.ads_list:       # pylint: disable=not-an-iterable
             parameters_list = c_param.from_matching_ads(ads, self.matching_ads,
@@ -98,7 +98,7 @@ class Predictions(luigi.WrapperTask):
         # Find out how many adsorbates the user wants to be simulating. This helps us figure
         # out how many parameters we should be pulling out for each adsorbate.
         n_ads = len(self.ads_list)
-        submit_per_ads = self.max_submit/n_ads
+        submit_per_ads = self.max_submit / n_ads
 
         for ads in self.ads_list:   # pylint: disable=not-an-iterable
             parameters_list = c_param.from_predictions(ads,
