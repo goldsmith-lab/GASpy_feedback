@@ -13,6 +13,7 @@ Input:
                     can work as a flag for this new calculation method.
     max_predictions An integer representing the maximum number of
                     `parameter` dictionaries that you want back
+    max_atoms       The maximum number of atoms in the system that you want to pull
 Output:
     parameters_list A list of `parameters` dictionaries that can be
                     passed to GASpy to execute a simulation
@@ -35,9 +36,11 @@ from regressor import GASpyRegressor    # noqa:  E402
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
 
-def randomly(adsorbate, calc_settings='rpbe', max_predictions=20):
+def randomly(adsorbate, calc_settings='rpbe', max_predictions=20, max_atoms=None):
     ''' Call this method if you want n=`max_predictions` completely random things '''
-    docs, _ = utils.unsimulated_catalog(adsorbate, calc_settings=calc_settings)
+    docs, _ = utils.unsimulated_catalog(adsorbate,
+                                        calc_settings=calc_settings,
+                                        max_atoms=max_atoms)
     parameters_list = _make_parameters_list(docs, [adsorbate],
                                             prioritization='random',
                                             max_predictions=max_predictions,
@@ -45,7 +48,8 @@ def randomly(adsorbate, calc_settings='rpbe', max_predictions=20):
     return parameters_list
 
 
-def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe', max_predictions=20):
+def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
+                      max_predictions=20, max_atoms=None):
     '''
     Call this method if you want n=`max_predictions` random sites that have already been
     relaxed with `adsorbate` on top. This method is useful for comparing a new adsorbate
@@ -55,7 +59,9 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe', max_predict
         matching_ads    The adsorbate that you want to compare to.
     '''
     # Find a list of the simulations that we haven't done yet, `cat_docs`
-    cat_docs, _ = utils.unsimulated_catalog([adsorbate], calc_settings=calc_settings)
+    cat_docs, _ = utils.unsimulated_catalog([adsorbate],
+                                            calc_settings=calc_settings,
+                                            max_atoms=max_atoms)
     # Find a list of the simulations that we have done, but only on the adsorbate
     # we're trying to match to, `matching_docs`
     with utils.get_adsorption_db() as ads_client:
@@ -84,11 +90,10 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe', max_predict
 
 def from_predictions(adsorbate, prediction_min, prediction_target, prediction_max,
                      pkl=None, block='no_block', calc_settings='rpbe', max_predictions=20,
-                     prioritization='gaussian', n_sigmas=6.,
-                     fingerprints=None):
+                     prioritization='gaussian', n_sigmas=6., fingerprints=None, max_atoms=None):
     # pylint: disable=too-many-arguments
     '''
-    Input:
+    Special input:
         prediction_min      The lower-bound of the prediction window that we want to hit
         prediction_target   The exact point in the prediction window that we want to hit
         prediction_max      The upper-bound of the prediction window that we want to hit
@@ -108,7 +113,8 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
     # Load the catalog data
     docs, p_docs = utils.unsimulated_catalog([adsorbate],
                                              calc_settings=calc_settings,
-                                             fingerprints=fingerprints)
+                                             fingerprints=fingerprints,
+                                             max_atoms=max_atoms)
 
     # Load the model
     with open(pkl, 'rb') as f:

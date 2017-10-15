@@ -32,6 +32,7 @@ class RandomAdslabs(luigi.WrapperTask):
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
     max_submit = luigi.IntParameter(20)
+    max_atoms = luigi.IntParameter(50)
 
     def requires(self):
         ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
@@ -42,7 +43,8 @@ class RandomAdslabs(luigi.WrapperTask):
 
         for ads in self.ads_list:       # pylint: disable=not-an-iterable
             parameters_list = c_param.randomly(ads, calc_settings=self.xc,
-                                               max_predictions=submit_per_ads)
+                                               max_predictions=submit_per_ads,
+                                               max_atoms=self.max_atoms)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
@@ -60,6 +62,7 @@ class MatchingAdslabs(luigi.WrapperTask):
     ads_list = luigi.ListParameter()
     matching_ads = luigi.Parameter()
     max_submit = luigi.IntParameter(20)
+    max_atoms = luigi.IntParameter(50)
 
     def requires(self):
         ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
@@ -71,7 +74,8 @@ class MatchingAdslabs(luigi.WrapperTask):
         for ads in self.ads_list:       # pylint: disable=not-an-iterable
             parameters_list = c_param.from_matching_ads(ads, self.matching_ads,
                                                         calc_settings=self.xc,
-                                                        max_predictions=submit_per_ads)
+                                                        max_predictions=submit_per_ads,
+                                                        max_atoms=self.max_atoms)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
 
@@ -92,6 +96,7 @@ class Predictions(luigi.WrapperTask):
     max_submit = luigi.IntParameter(20)
     priority = luigi.Parameter('gaussian')
     n_sigmas = luigi.FloatParameter(6.)
+    max_atoms = luigi.IntParameter(50)
 
     def requires(self):
         ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
@@ -110,6 +115,7 @@ class Predictions(luigi.WrapperTask):
                                                        calc_settings=self.xc,
                                                        max_predictions=submit_per_ads,
                                                        prioritization=self.priority,
-                                                       n_sigmas=self.n_sigmas)
+                                                       n_sigmas=self.n_sigmas,
+                                                       max_atoms=self.max_atoms)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
