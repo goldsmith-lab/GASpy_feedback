@@ -7,9 +7,9 @@ source activate /project/projectdirs/m2755/GASpy_conda/
 PYTHONPATH='.' luigi \
     --module feedback Predictions \
     --ads-list '["CO"]' \
-    --prediction-min -2.5 \
-    --prediction-max 1.5 \
-    --prediction-target -0.55 \
+    --prediction-min -2.6 \
+    --prediction-max 1.4 \
+    --prediction-target -0.60 \
     --model-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("CO",)' \
