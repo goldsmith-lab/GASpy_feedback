@@ -91,7 +91,6 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
 def from_predictions(adsorbate, prediction_min, prediction_target, prediction_max,
                      pkl=None, block='no_block', calc_settings='rpbe', max_predictions=20,
                      prioritization='gaussian', n_sigmas=6., fingerprints=None, max_atoms=None):
-    # pylint: disable=too-many-arguments
     '''
     Special input:
         prediction_min      The lower-bound of the prediction window that we want to hit
@@ -148,6 +147,29 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
     return parameters_list
 
 
+def by_surface(adsorbate, mpids, millers,
+               calc_settings='rpbe', max_predictions=20, max_atoms=None):
+    '''
+    Call this method if you want n=`max_predictions` sites that correspond to a given list of mpids
+
+    Special inputs:
+        mpids   A list of strings for each mpid, e.g., ['mp-26', 'mp-30']
+        millers A list of lists for each mpid, e.g., [[1, 0, 0], [1, 1, 1]]
+    '''
+    docs, _ = utils.unsimulated_catalog(adsorbate,
+                                        calc_settings=calc_settings,
+                                        max_atoms=max_atoms)
+
+    # Filter the docs to contain only items that correspond to the mpids that we have
+    docs = [doc for doc in docs if doc['mpid'] in mpids and doc['miller'] in millers]
+
+    parameters_list = _make_parameters_list(docs, adsorbate,
+                                            prioritization='random',
+                                            max_predictions=max_predictions,
+                                            calc_settings=calc_settings)
+    return parameters_list
+
+
 def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
                           calc_settings='rpbe', target=None, values=None, n_sigmas=6.):
     '''
@@ -180,7 +202,6 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         parameters_list The list of parameters dictionaries that may be sent
                         to GASpy
     '''
-    # pylint: disable=too-many-branches, too-many-arguments
     # TODO:  Remove the divisor when we figure out how to keep top/bottom consistent
     if len(docs) <= max_predictions / 2:
         '''
@@ -236,7 +257,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; rename
         # it p, and call np.random.choice
         p = (pdf_eval/sum(pdf_eval)).tolist()
-        docs = np.random.choice(docs, size=max_predictions/2, replace=False, p=p)  # pylint: disable=no-member
+        docs = np.random.choice(docs, size=max_predictions/2, replace=False, p=p)  # noqa:  E501
 
     else:
         raise Exception('User did not provide a valid prioritization')
@@ -272,8 +293,8 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
                                                        shift=doc['shift'],
                                                        settings=calc_settings)
             # Finally:  Create the new parameters
-            parameters_list.append({'bulk': defaults.bulk_parameters(doc['mpid'], settings=calc_settings),
-                                    'gas': defaults.gas_parameters(adsorbate, settings=calc_settings),
+            parameters_list.append({'bulk': defaults.bulk_parameters(doc['mpid'], settings=calc_settings),  # noqa:  E501
+                                    'gas': defaults.gas_parameters(adsorbate, settings=calc_settings),  # noqa:  E501
                                     'slab': slab_parameters,
                                     'adsorption': adsorption_parameters})
     return parameters_list

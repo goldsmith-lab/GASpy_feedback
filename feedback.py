@@ -6,7 +6,6 @@ tasks for each type of selection style.
 For more information regarding all of the task arguments, please
 refer to the respective functions that each tasks calls from `create_parameters`.
 '''
-# pylint: disable=unsubscriptable-object
 
 __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
@@ -15,8 +14,10 @@ import pdb  # noqa:  F401
 import sys
 import luigi
 import create_parameters as c_param
+import pickle
+from gaspy.defaults import adsorption_parameters,slab_parameters,bulk_parameters,gas_parameters
 sys.path.insert(0, '../')
-from tasks import FingerprintRelaxedAdslab  # noqa:  E401
+from tasks import FingerprintRelaxedAdslab,MatchCatalogShift,GenerateSlabs  # noqa:  E401
 
 
 # XC = 'beef-vdw'
@@ -41,7 +42,7 @@ class RandomAdslabs(luigi.WrapperTask):
         n_ads = len(self.ads_list)
         submit_per_ads = self.max_submit / n_ads
 
-        for ads in self.ads_list:       # pylint: disable=not-an-iterable
+        for ads in self.ads_list:
             parameters_list = c_param.randomly(ads, calc_settings=self.xc,
                                                max_predictions=submit_per_ads,
                                                max_atoms=self.max_atoms)
@@ -71,7 +72,7 @@ class MatchingAdslabs(luigi.WrapperTask):
         n_ads = len(self.ads_list)
         submit_per_ads = self.max_submit / n_ads
 
-        for ads in self.ads_list:       # pylint: disable=not-an-iterable
+        for ads in self.ads_list:
             parameters_list = c_param.from_matching_ads(ads, self.matching_ads,
                                                         calc_settings=self.xc,
                                                         max_predictions=submit_per_ads,
@@ -105,7 +106,7 @@ class Predictions(luigi.WrapperTask):
         n_ads = len(self.ads_list)
         submit_per_ads = self.max_submit / n_ads
 
-        for ads in self.ads_list:   # pylint: disable=not-an-iterable
+        for ads in self.ads_list:
             parameters_list = c_param.from_predictions(ads,
                                                        self.prediction_min,
                                                        self.prediction_target,
@@ -119,3 +120,43 @@ class Predictions(luigi.WrapperTask):
                                                        max_atoms=self.max_atoms)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
+
+
+class Surfaces(luigi.WrapperTask):
+    '''
+    Use the `create_parameters.randomly` function to create a list of all
+    asorption sites on a set of surfaces, then submit them for simulation. Good for
+    fully evaluating possibly interesting surfaces.
+    '''
+    # Set default values
+    xc = luigi.Parameter(XC)
+    ads_list = luigi.ListParameter()
+    mpid_list = luigi.ListParameter()
+    miller_list = luigi.ListParameter()
+    max_submit = luigi.IntParameter(20)
+    max_atoms = luigi.IntParameter(50)
+
+    def requires(self):
+        # Find out how many adsorbates the user wants to be simulating. This helps us figure
+        # out how many parameters we should be pulling out for each adsorbate.
+        submit_per_surface = self.max_submit/(len(self.ads_list)*len(self.mpid_list))
+
+        for ads in self.ads_list:
+            parameters_list = c_param.by_surface(ads, self.mpid_list, self.miller_list,
+                                                 calc_settings=self.xc,
+                                                 max_predictions=submit_per_surface,
+                                                 max_atoms=self.max_atoms)
+
+            for parameters in parameters_list:
+                # Make and identify the relaxed slab that corresponds to the catalog slab
+                MCS = MatchCatalogShift(parameters=parameters)
+                if not(MCS.complete()):
+                    yield MatchCatalogShift(parameters=parameters)
+
+                # Reset the shift (which may have changed after relaxation), and submit
+                else:
+                    shift = pickle.load(MCS.output().open())
+                    parameters['slab']['shift'] = shift
+                    parameters['adsorption']['numtosubmit'] = 100
+                    parameters['adsorption']['adsorbates'][0]['fp'] = {}
+                    yield FingerprintRelaxedAdslab(parameters=parameters)
