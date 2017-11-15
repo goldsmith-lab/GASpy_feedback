@@ -14,8 +14,10 @@ import pdb  # noqa:  F401
 import sys
 import luigi
 import create_parameters as c_param
+from collections import OrderedDict
 import pickle
-from gaspy.defaults import adsorption_parameters,slab_parameters,bulk_parameters,gas_parameters
+from random import shuffle
+import gaspy.defaults as defaults
 sys.path.insert(0, '../')
 from tasks import FingerprintRelaxedAdslab,MatchCatalogShift,GenerateSlabs  # noqa:  E401
 
@@ -137,26 +139,45 @@ class Surfaces(luigi.WrapperTask):
     max_atoms = luigi.IntParameter(50)
 
     def requires(self):
-        # Find out how many adsorbates the user wants to be simulating. This helps us figure
-        # out how many parameters we should be pulling out for each adsorbate.
-        submit_per_surface = self.max_submit/(len(self.ads_list)*len(self.mpid_list))
+        # Create parameters for every mpid/surface pairing
+        parameters_list = []
+        for mpid in self.mpid_list:
+            for miller in self.miller_list:
+                bulk = defaults.bulk_parameters(mpid, settings=self.xc)
 
-        for ads in self.ads_list:
-            parameters_list = c_param.by_surface(ads, self.mpid_list, self.miller_list,
-                                                 calc_settings=self.xc,
-                                                 max_predictions=submit_per_surface,
-                                                 max_atoms=self.max_atoms)
+                # Create the slabs if we have not yet done so
+                GS = GenerateSlabs(parameters={'bulk':bulk,
+                                               'slab':defaults.slab_parameters(miller, True, 0,
+                                                                               settings=self.xc)})
+                if not(GS.complete()):
+                    yield GS
 
-            for parameters in parameters_list:
-                # Make and identify the relaxed slab that corresponds to the catalog slab
-                MCS = MatchCatalogShift(parameters=parameters)
-                if not(MCS.complete()):
-                    yield MatchCatalogShift(parameters=parameters)
-
-                # Reset the shift (which may have changed after relaxation), and submit
+                # If we have the slabs, then create the parameters manually and submit
                 else:
-                    shift = pickle.load(MCS.output().open())
-                    parameters['slab']['shift'] = shift
-                    parameters['adsorption']['numtosubmit'] = 100
-                    parameters['adsorption']['adsorbates'][0]['fp'] = {}
-                    yield FingerprintRelaxedAdslab(parameters=parameters)
+                    # Pull out the slabs and make parameters from them
+                    slab_list = pickle.load(GS.output().open())
+                    slabs = [slab for slab in slab_list if slab['tags']['miller'] == miller]
+                    for slab in slabs:
+                        slab = defaults.slab_parameters(miller,
+                                                        slab['tags']['top'],
+                                                        slab['tags']['shift'],
+                                                        settings=self.xc)
+                        # Fetch the adsorbates from the input and make parameters from them
+                        for ads in self.ads_list:
+                            gas = defaults.gas_parameters(ads, settings=self.xc)
+                            adsorption = defaults.adsorption_parameters(ads, settings=self.xc)
+                            # Combine all the parameters
+                            parameters_list.append(OrderedDict(bulk=bulk,
+                                                               slab=slab,
+                                                               adsorption=adsorption,
+                                                               gas=gas))
+
+        # Submit for Fingerprinting/Relaxation. We shuffle the list to randomize what we run. This
+        # really only matters if len(parameter_list) > max_submit
+        shuffle(parameters_list)
+        for i, parameters in enumerate(parameters_list):
+            # This filter makes sure we don't accidentally submit too many jobs
+            if i <= self.max_submit:
+                parameters['adsorption']['numtosubmit'] = 100
+                parameters['adsorption']['adsorbates'][0]['fp'] = {}
+                yield FingerprintRelaxedAdslab(parameters=parameters)

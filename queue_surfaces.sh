@@ -1,7 +1,7 @@
 #!/bin/sh
 
 module load python
-cd /global/project/projectdirs/m2755/GASpy/GASpy_feedback
+cd /global/project/projectdirs/m2755/GASpy_dev/GASpy_feedback
 source activate /project/projectdirs/m2755/GASpy_conda/
 
 PYTHONPATH='.' luigi \
@@ -15,4 +15,4 @@ PYTHONPATH='.' luigi \
     --workers=4 \
     --log-level=WARNING \
     --parallel-scheduling \
-    --worker-timeout 300 
+    --worker-timeout 300

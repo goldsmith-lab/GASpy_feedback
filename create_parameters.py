@@ -25,6 +25,7 @@ __email__ = 'ktran@andrew.cmu.edu'
 import pdb  # noqa:  F401
 import sys
 import random
+from collections import OrderedDict
 import numpy as np
 import scipy as sp
 import dill as pickle
@@ -32,7 +33,7 @@ sys.path.insert(0, '../')
 from gaspy import defaults  # noqa:  E402
 from gaspy import utils     # noqa:  E402
 sys.path.insert(0, '../GASpy_regressions')
-from regressor import GASpyRegressor    # noqa:  E402
+from gaspy_regress.regressor import GASpyRegressor    # noqa:  E402
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
 
@@ -147,29 +148,6 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
     return parameters_list
 
 
-def by_surface(adsorbate, mpids, millers,
-               calc_settings='rpbe', max_predictions=20, max_atoms=None):
-    '''
-    Call this method if you want n=`max_predictions` sites that correspond to a given list of mpids
-
-    Special inputs:
-        mpids   A list of strings for each mpid, e.g., ['mp-26', 'mp-30']
-        millers A list of lists for each mpid, e.g., [[1, 0, 0], [1, 1, 1]]
-    '''
-    docs, _ = utils.unsimulated_catalog(adsorbate,
-                                        calc_settings=calc_settings,
-                                        max_atoms=max_atoms)
-
-    # Filter the docs to contain only items that correspond to the mpids that we have
-    docs = [doc for doc in docs if doc['mpid'] in mpids and doc['miller'] in millers]
-
-    parameters_list = _make_parameters_list(docs, adsorbate,
-                                            prioritization='random',
-                                            max_predictions=max_predictions,
-                                            calc_settings=calc_settings)
-    return parameters_list
-
-
 def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
                           calc_settings='rpbe', target=None, values=None, n_sigmas=6.):
     '''
@@ -256,8 +234,9 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         # We use np.random.choice to do the choosing. But this function needs `p`, which
         # needs to sum to one. So we re-scale pdf_eval such that its sum equals 1; rename
         # it p, and call np.random.choice
+        # TODO:  Get rid of the `/2` here if we ever address the top/bottom issue
         p = (pdf_eval/sum(pdf_eval)).tolist()
-        docs = np.random.choice(docs, size=max_predictions/2, replace=False, p=p)  # noqa:  E501
+        docs = np.random.choice(docs, size=max_predictions/2, replace=False, p=p)
 
     else:
         raise Exception('User did not provide a valid prioritization')
@@ -271,7 +250,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         # Change the fingerprint to match the coordination of the doc we are looking at.
         # Since there is a chance the user may have omitted any of these fingerprints,
         # we use EAFP to define them.
-        fp = {}
+        fp = OrderedDict()
         try:
             fp['coordination'] = doc['coordination']
         except KeyError:
@@ -287,16 +266,17 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         adsorption_parameters['adsorbates'][0]['fp'] = fp
 
         # Add the parameters dictionary to our list for both the top and the bottom
+        # TODO:  Get rid of this loop if we ever address the top/bottom issue
         for top in [True, False]:
             slab_parameters = defaults.slab_parameters(miller=doc['miller'],
                                                        top=top,
                                                        shift=doc['shift'],
                                                        settings=calc_settings)
             # Finally:  Create the new parameters
-            parameters_list.append({'bulk': defaults.bulk_parameters(doc['mpid'], settings=calc_settings),  # noqa:  E501
-                                    'gas': defaults.gas_parameters(adsorbate, settings=calc_settings),  # noqa:  E501
-                                    'slab': slab_parameters,
-                                    'adsorption': adsorption_parameters})
+            parameters_list.append(OrderedDict(bulk=defaults.bulk_parameters(doc['mpid'], settings=calc_settings),
+                                               gas=defaults.gas_parameters(adsorbate, settings=calc_settings),
+                                               slab=slab_parameters,
+                                               adsption=adsorption_parameters))
     return parameters_list
 
 
