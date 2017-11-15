@@ -273,7 +273,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
             parameters_list.append(OrderedDict(bulk=defaults.bulk_parameters(doc['mpid'], settings=calc_settings),
                                                gas=defaults.gas_parameters(adsorbate, settings=calc_settings),
                                                slab=slab_parameters,
-                                               adsption=adsorption_parameters))
+                                               adsorption=adsorption_parameters))
     return parameters_list
 
 
