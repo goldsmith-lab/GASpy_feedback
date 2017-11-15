@@ -11,14 +11,12 @@ __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
 
 import pdb  # noqa:  F401
-import sys
 import luigi
 import create_parameters as c_param
 from collections import OrderedDict
 import pickle
 from random import shuffle
 import gaspy.defaults as defaults
-sys.path.insert(0, '../')
 from tasks import FingerprintRelaxedAdslab,MatchCatalogShift,GenerateSlabs  # noqa:  E401
 
 

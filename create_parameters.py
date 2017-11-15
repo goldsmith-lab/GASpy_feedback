@@ -23,16 +23,13 @@ __author__ = 'Kevin Tran'
 __email__ = 'ktran@andrew.cmu.edu'
 
 import pdb  # noqa:  F401
-import sys
 import random
 from collections import OrderedDict
 import numpy as np
 import scipy as sp
 import dill as pickle
-sys.path.insert(0, '../')
 from gaspy import defaults  # noqa:  E402
 from gaspy import utils     # noqa:  E402
-sys.path.insert(0, '../GASpy_regressions')
 from gaspy_regress.regressor import GASpyRegressor    # noqa:  E402
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 

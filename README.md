@@ -1,4 +1,4 @@
-# GASpy Predict
+# GASpy Feedback
 
 ## Purpose
 [GASpy](https://github.com/ktran9891/GASpy) is able to create various catalyst-adsorbate systems and then
@@ -17,3 +17,10 @@ This list is then used by `feedback.py`, which contains [Luigi](https://github.c
 GASpy to perform simulations of the systems which we think might perform the best.
 
 `queue_predicted.sh` is a template bash script to perform the feedback simulations.
+
+## Installation
+Remember to add the repo to your Python path. The module importing assumes that you have GASpy in your Python path.
+You can do so by putting the following in your `.bashrc`:
+```
+export PYTHONPATH="/path/to/GASpy/GASpy_feedback:${PYTHONPATH}"
+```
