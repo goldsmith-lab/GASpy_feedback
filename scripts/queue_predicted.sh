@@ -1,10 +1,17 @@
 #!/bin/sh
 
-module load python
-cd /global/project/projectdirs/m2755/GASpy/GASpy_feedback
-source activate /project/projectdirs/m2755/GASpy_conda/
+# Get path information from the .gaspyrc.json file
+gaspy_path="$(python ../../.read_rc.py gaspy_path)"
+conda_path="$(python ../../.read_rc.py conda_path)"
+luigi_port="$(python ../../.read_rc.py luigi_port)"
 
-PYTHONPATH='.' luigi \
+# Load the appropriate environment, etc.
+module load python
+cd $gaspy_path/GASpy_feedback/gaspy_feedback
+source activate $conda_path
+
+# Tell Luigi to queue various simulations based on a model's predictions
+PYTHONPATH=$PYTHONPATH luigi \
     --module feedback Predictions \
     --ads-list '["CO"]' \
     --prediction-min -2.6 \
@@ -15,7 +22,7 @@ PYTHONPATH='.' luigi \
     --block '("CO",)' \
     --xc 'rpbe' \
     --max-submit 200 \
-    --scheduler-host 128.55.224.51 \
+    --scheduler-host $luigi_port \
     --workers=4 \
     --log-level=WARNING \
     --parallel-scheduling \

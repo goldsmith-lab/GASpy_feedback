@@ -28,15 +28,14 @@ from collections import OrderedDict
 import numpy as np
 import scipy as sp
 import dill as pickle
-from gaspy import defaults  # noqa:  E402
-from gaspy import utils     # noqa:  E402
-from gaspy_regress.regressor import GASpyRegressor    # noqa:  E402
+from gaspy import defaults, gasdb
+from gaspy_regress.regressor import GASpyRegressor
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
 
 def randomly(adsorbate, calc_settings='rpbe', max_predictions=20, max_atoms=None):
     ''' Call this method if you want n=`max_predictions` completely random things '''
-    docs, _ = utils.unsimulated_catalog(adsorbate,
+    docs, _ = gasdb.unsimulated_catalog(adsorbate,
                                         calc_settings=calc_settings,
                                         max_atoms=max_atoms)
     parameters_list = _make_parameters_list(docs, [adsorbate],
@@ -57,20 +56,20 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
         matching_ads    The adsorbate that you want to compare to.
     '''
     # Find a list of the simulations that we haven't done yet, `cat_docs`
-    cat_docs, _ = utils.unsimulated_catalog([adsorbate],
+    cat_docs, _ = gasdb.unsimulated_catalog([adsorbate],
                                             calc_settings=calc_settings,
                                             max_atoms=max_atoms)
     # Find a list of the simulations that we have done, but only on the adsorbate
     # we're trying to match to, `matching_docs`
-    with utils.get_adsorption_db() as ads_client:
-        matching_docs, _ = utils.get_docs(ads_client, 'adsorption',
+    with gasdb.get_adsorption_client() as ads_client:
+        matching_docs, _ = gasdb.get_docs(ads_client, 'adsorption',
                                           calc_settings=calc_settings,
                                           fingerprints=defaults.fingerprints(),
                                           adsorbates=[matching_ads])
 
     # Do some hashing so that we can start filtering
-    cat_hashes = utils.hash_docs(cat_docs, ignore_ads=True)
-    matching_hashes = utils.hash_docs(matching_docs, ignore_ads=True)
+    cat_hashes = gasdb.hash_docs(cat_docs, ignore_ads=True)
+    matching_hashes = gasdb.hash_docs(matching_docs, ignore_ads=True)
     # Filter our list of possible simulations by including them
     # only if they're in `matching_docs`
     docs = []
@@ -108,7 +107,7 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
                             to GASpy
     '''
     # Load the catalog data
-    docs, p_docs = utils.unsimulated_catalog([adsorbate],
+    docs, p_docs = gasdb.unsimulated_catalog([adsorbate],
                                              calc_settings=calc_settings,
                                              fingerprints=fingerprints,
                                              max_atoms=max_atoms)

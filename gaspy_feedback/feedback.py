@@ -11,17 +11,23 @@ __author__ = 'Kevin Tran'
 __email__ = '<ktran@andrew.cmu.edu>'
 
 import pdb  # noqa:  F401
+import sys
 import luigi
-import create_parameters as c_param
 from collections import OrderedDict
 import pickle
 from random import shuffle
-import gaspy.defaults as defaults
-from tasks import FingerprintRelaxedAdslab,MatchCatalogShift,GenerateSlabs  # noqa:  E401
+from gaspy import utils, defaults
+import gaspy_feedback.create_parameters as c_param
+
+# Find the location of the GASpy tasks so that we can import/use them
+configs = utils.read_rc()
+tasks_path = configs['gaspy_path'] + '/gaspy'
+sys.path.insert(0, tasks_path)
+from tasks import FingerprintRelaxedAdslab, GenerateSlabs
 
 
-# XC = 'beef-vdw'
-XC = 'rpbe'
+# Load the default exchange correlational from the .gaspyrc.json file
+XC = configs['default_xc']
 
 
 class RandomAdslabs(luigi.WrapperTask):
