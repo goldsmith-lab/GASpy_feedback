@@ -1,13 +1,15 @@
 #!/bin/sh
 
+# Go back to home directory, then go to GASpy
+cd
+cd GASpy/
 # Get path information from the .gaspyrc.json file
-gaspy_path="$(python ../../.read_rc.py gaspy_path)"
-conda_path="$(python ../../.read_rc.py conda_path)"
-luigi_port="$(python ../../.read_rc.py luigi_port)"
+conda_path="$(python .read_rc.py conda_path)"
+luigi_port="$(python .read_rc.py luigi_port)"
 
 # Load the appropriate environment, etc.
 module load python
-cd $gaspy_path/GASpy_feedback/gaspy_feedback
+cd GASpy_feedback/gaspy_feedback
 source activate $conda_path
 
 # Tell Luigi to queue various simulations based on a model's predictions
