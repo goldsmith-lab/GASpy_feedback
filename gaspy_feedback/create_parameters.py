@@ -86,7 +86,7 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
 
 
 def from_predictions(adsorbate, prediction_min, prediction_target, prediction_max,
-                     pkl=None, block='no_block', calc_settings='rpbe', max_predictions=20,
+                     pkl=None, block=(None,), calc_settings='rpbe', max_predictions=20,
                      prioritization='gaussian', n_sigmas=6., fingerprints=None, max_atoms=None):
     '''
     Special input:

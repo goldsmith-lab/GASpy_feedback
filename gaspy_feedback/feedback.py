@@ -122,7 +122,7 @@ class Predictions(luigi.WrapperTask):
     prediction_target = luigi.FloatParameter()
     prediction_max = luigi.FloatParameter(4.)
     model_location = luigi.Parameter()
-    block = luigi.TupleParameter('no_block')
+    block = luigi.TupleParameter((None,))
     xc = luigi.Parameter(XC)
     max_submit = luigi.IntParameter(20)
     priority = luigi.Parameter('gaussian')
