@@ -14,12 +14,12 @@ source activate $conda_path
 
 # Use Luigi to queue various surfaces for simulation
 PYTHONPATH=$PYTHONPATH luigi \
-    --module feedback Surfaces \
-    --ads-list '["CO","H","O","OH","C"]' \
-    --mpid-list '["mp-30","mp-81","mp-124","mp-23","mp-2","mp-126","mp-74"]' \
-    --miller-list '[[1,0,0],[1, 1, 1],[2,1,1]]' \
+    --module feedback BestSurfaces \
+    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CO2RR_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --xc 'rpbe' \
-    --max-surfaces 100 \
+    --ads-list '["CO"]' \
+    --performance-threshold 0.1 \
+    --max-surfaces 1 \
     --scheduler-host $luigi_port \
     --workers=4 \
     --log-level=WARNING \

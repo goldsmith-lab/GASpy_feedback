@@ -1,10 +1,16 @@
 '''
-These tasks use the `create_parameters` module to determine what systems
-to simulate next, and then it submits the simulations. There are different
-tasks for each type of selection style.
+These tasks tell GASpy what adsorption sites to simulated next.
+There are different tasks for each type of selection style.
 
-For more information regarding all of the task arguments, please
-refer to the respective functions that each tasks calls from `create_parameters`.
+Here are some common task arguments in this module:
+    xc          A string indicating the cross-correlational you want to use. As of now,
+                it can only be `rpbe` or `beef-vdw`
+    max_submit  A positive integer indicating the maximum number of simulations you want
+                to queue up with one call of the task
+    max_atoms   A positive integer indicating the maximum number of atoms you want
+                present in the simulation
+    ads_list    A list of strings, where the strings are the adsorbates you want to
+                simulate
 '''
 
 __author__ = 'Kevin Tran'
@@ -16,14 +22,14 @@ import luigi
 from collections import OrderedDict
 import pickle
 from random import shuffle
-from gaspy import utils, defaults
+from gaspy import utils, defaults, gasdb
 import gaspy_feedback.create_parameters as c_param
 
 # Find the location of the GASpy tasks so that we can import/use them
 configs = utils.read_rc()
 tasks_path = configs['gaspy_path'] + '/gaspy'
 sys.path.insert(0, tasks_path)
-from tasks import FingerprintRelaxedAdslab, GenerateSlabs
+from tasks import FingerprintRelaxedAdslab, GenerateSlabs  # noqa: E402
 
 
 # Load the default exchange correlational from the .gaspyrc.json file
@@ -31,10 +37,7 @@ XC = configs['default_xc']
 
 
 class RandomAdslabs(luigi.WrapperTask):
-    '''
-    Use the `create_parameters.randomly` function to create a list of GASpy
-    parameters, then submit them for simulation
-    '''
+    ''' Simulated virtually random adsorption sites '''
     # Set default values
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
@@ -58,11 +61,12 @@ class RandomAdslabs(luigi.WrapperTask):
 
 class MatchingAdslabs(luigi.WrapperTask):
     '''
-    Use the `create_parameters.from_matching_ads` function to create a list of GASpy
-    parameters, then submit them for simulation.
+    Simulate adsorptions of one type of adsorbate based on what we've already simulated
+    for a different type of adsorbate.
 
-    Note that `matching_ads` is a string indicating the adsorbate you want to "copy",
-    while `ads_list` is a list of the adsorbates that you want to make submissions for.
+    Special input:
+        matching_ads    A string indicating the adsorbate that "you've already simulated"
+                        and want to copy sites for
     '''
     # Set default values
     xc = luigi.Parameter(XC)
@@ -89,8 +93,28 @@ class MatchingAdslabs(luigi.WrapperTask):
 
 class Predictions(luigi.WrapperTask):
     '''
-    Use the `create_parameters.from_predictions` function to create a list of GASpy
-    parameters, then submit them for simulation
+    Use a fitted instance of `gaspy_regress.regressor.GASpyRegressor` to make predictions
+    on the catalog, and then queue simulations that match a specified target.
+
+    Special inputs:
+        prediction_min      A float indicating a lower-bound for whatever property you are
+                            predicting. Note that this may not be a "hard minimum" if you
+                            choose particular priority methods, like 'gaussian'
+        prediction_target   A float indicating the target you are trying to hit regarding
+                            your predictions.
+        prediction_max      A float indicating an upper-bound for whatever property you are
+                            predicting. Note that this may not be a "hard maximum" if you
+                            choose particular priority methods, like 'gaussian'
+        model_location      A string indicating the location of the fitted instance of
+                            GASpyRegressor that you are using
+        block               The block of the model that you are using to make predictions.
+        priority            The way in which you want to prioritize the simulations.
+                            Can probably be `targeted`, `random`, or `gaussian`.
+                            See `gaspy_feedback.create_parameters._make_parameters_list`
+                            for more details.
+        n_sigmas            If priority == 'gaussian' or some other probability distribution
+                            function, then it needs a standard deviation associated with it.
+                            You may set it here. A higher value here yields a tighter targeting.
     '''
     # Set default values
     ads_list = luigi.ListParameter()
@@ -133,13 +157,24 @@ class Surfaces(luigi.WrapperTask):
     Use the `create_parameters.randomly` function to create a list of all
     asorption sites on a set of surfaces, then submit them for simulation. Good for
     fully evaluating possibly interesting surfaces.
+
+    Special inputs:
+        mpid_list       A list of strings indicating the mpid numbers you want to simulate
+        miller_list     A list of list of integers indicating the miller indices you want
+                        to simulate
+        max_surfaces    A positive integer indicating the maximum number of surfaces you
+                        want to queue simulations for. We use this in lieu of `max_submit`,
+                        because this task submits surfaces naively. This means that we ask
+                        for simulations on a surface without every knowing how many sites
+                        (and therefore simulations) are on that surface. This is probably
+                        dangerous, but we don't have time to think of a more elegant solution.
     '''
     # Set default values
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
     mpid_list = luigi.ListParameter()
     miller_list = luigi.ListParameter()
-    max_submit = luigi.IntParameter(20)
+    max_surfaces = luigi.IntParameter(20)
     max_atoms = luigi.IntParameter(50)
 
     def requires(self):
@@ -150,9 +185,9 @@ class Surfaces(luigi.WrapperTask):
                 bulk = defaults.bulk_parameters(mpid, settings=self.xc)
 
                 # Create the slabs if we have not yet done so
-                GS = GenerateSlabs(parameters={'bulk':bulk,
-                                               'slab':defaults.slab_parameters(miller, True, 0,
-                                                                               settings=self.xc)})
+                GS = GenerateSlabs(parameters={'bulk': bulk,
+                                               'slab': defaults.slab_parameters(miller, True, 0,
+                                                                                settings=self.xc)})
                 if not(GS.complete()):
                     yield GS
 
@@ -176,12 +211,106 @@ class Surfaces(luigi.WrapperTask):
                                                                adsorption=adsorption,
                                                                gas=gas))
 
-        # Submit for Fingerprinting/Relaxation. We shuffle the list to randomize what we run. This
-        # really only matters if len(parameter_list) > max_submit
+        # Submit for Fingerprinting/Relaxation. We shuffle the list to randomize what we run.
         shuffle(parameters_list)
         for i, parameters in enumerate(parameters_list):
             # This filter makes sure we don't accidentally submit too many jobs
-            if i <= self.max_submit:
+            if i <= self.max_surfaces:
                 parameters['adsorption']['numtosubmit'] = 100
                 parameters['adsorption']['adsorbates'][0]['fp'] = {}
                 yield FingerprintRelaxedAdslab(parameters=parameters)
+
+
+class BestSurfaces(luigi.WrapperTask):
+    '''
+    This task will queue up and exhaust the adsorption sites of the highest performing
+    surfaces that have not yet been simulated.
+
+    Special inputs:
+        predictions             A data ball created by `gaspy_regress.predict`
+        performance_threshold   A float (between 0 and 1, preferably) that indicates
+                                the minimum level of performance relative to the best
+                                performing surface.
+        max_surfaces            A positive integer indicating the maximum number of surfaces you
+                                want to queue simulations for. We use this in lieu of
+                                `max_submit`, because this task submits surfaces naively. This
+                                means that we ask for simulations on a surface without every
+                                knowing how many sites (and therefore simulations) are on that
+                                surface. This is probably dangerous, but we don't have time to
+                                think of a more elegant solution.
+    '''
+    # Set default values
+    predictions = luigi.Parameter()
+    xc = luigi.Parameter(XC)
+    ads_list = luigi.ListParameter()
+    performance_threshold = luigi.FloatParameter(0.1)
+    max_surfaces = luigi.IntParameter(20)
+    max_atoms = luigi.IntParameter(50)
+
+    def requires(self):
+        # Unpack the data structure
+        with open(self.predictions, 'r') as f:
+            data_ball = pickle.load(f)
+        sim_data, unsim_data = data_ball
+        sim_docs, predictions, _ = zip(*sim_data)
+        cat_docs, estimations = zip(*unsim_data)
+        _, y_data_pred = zip(*predictions)
+        y_pred, y_u_pred = zip(*y_data_pred)
+        _, y_data_est = zip(*estimations)
+        y_est, y_u_est = zip(*y_data_est)
+        # Package the estimations and predictions together, because we don't
+        # really care which they come from. Then zip it up so we can sort everything
+        # at once.
+        docs = list(sim_docs)
+        docs.extend(list(cat_docs))
+        y = list(y_pred)
+        y.extend(list(y_est))
+        y_u = list(y_u_pred)
+        y_u.extend(list(y_u_est))
+        data = zip(docs, y, y_u)
+
+        # Sort the data so that the items with the highest `y` values are
+        # at the beginning of the list
+        data = sorted(data, key=lambda datum: datum[1], reverse=True)
+        # Take out everything that hasn't performed well enough
+        y_max = data[0][1]
+        data = [(doc, _y, _y_u) for doc, _y, _y_u in data
+                if _y > self.performance_threshold*y_max]
+        # Find the best performing surfaces
+        best_surfaces = []
+        for doc, _, _ in data:
+            mpid = doc['mpid']
+            miller = tuple(doc['miller'])
+            surface = (mpid, miller)
+            best_surfaces.append(surface)
+
+        # Find all of the adsorption sites that we have not yet simulated
+        docs, _ = gasdb.unsimulated_catalog(adsorbates=self.ads_list,
+                                            calc_settings=self.xc,
+                                            max_atoms=self.max_atoms)
+        # Figure out the surfaces that we have not yet simulated
+        unsim_surfaces = []
+        for doc in docs:
+            mpid = doc['mpid']
+            miller = tuple(doc['miller'])
+            surface = (mpid, miller)
+            unsim_surfaces.append(surface)
+        # Eliminate redundancies in our list of unsimulated surfaces
+        unsim_surfaces = list(set(unsim_surfaces))
+        # Store the unsimulated surfaces into they keys of a dictionary so
+        # that we can search through them quickly
+        unsim_surfaces = dict.fromkeys(unsim_surfaces)
+
+        # Queue up the top performing surfaces if they are unsimulated
+        n = 0
+        for surface in best_surfaces:
+            # Stop if we've submitted enough
+            if n >= self.max_surfaces:
+                break
+            # Otherwise, keep submitting
+            if surface in unsim_surfaces:
+                n += 1
+                mpid, miller = surface
+                yield Surfaces(xc=self.xc, ads_list=self.ads_list,
+                               mpid_list=[mpid], miller_list=[miller],
+                               max_surfaces=1, max_atoms=self.max_atoms)
