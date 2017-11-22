@@ -227,7 +227,8 @@ class BestSurfaces(luigi.WrapperTask):
     surfaces that have not yet been simulated.
 
     Special inputs:
-        predictions             A data ball created by `gaspy_regress.predict`
+        predictions             A string indicating the location of a data ball
+                                created by `gaspy_regress.predict`
         performance_threshold   A float (between 0 and 1, preferably) that indicates
                                 the minimum level of performance relative to the best
                                 performing surface.
