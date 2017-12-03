@@ -18,6 +18,7 @@ __email__ = '<ktran@andrew.cmu.edu>'
 
 import pdb  # noqa:  F401
 import sys
+import warnings
 import luigi
 from collections import OrderedDict
 import pickle
@@ -34,6 +35,8 @@ from tasks import FingerprintRelaxedAdslab, GenerateSlabs  # noqa: E402
 
 # Load the default exchange correlational from the .gaspyrc.json file
 XC = configs['default_xc']
+MAX_SUBMIT = 20
+MAX_ATOMS = 50
 
 
 class RandomAdslabs(luigi.WrapperTask):
@@ -41,8 +44,8 @@ class RandomAdslabs(luigi.WrapperTask):
     # Set default values
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
-    max_submit = luigi.IntParameter(20)
-    max_atoms = luigi.IntParameter(50)
+    max_submit = luigi.IntParameter(MAX_SUBMIT)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
 
     def requires(self):
         ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
@@ -72,8 +75,8 @@ class MatchingAdslabs(luigi.WrapperTask):
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
     matching_ads = luigi.Parameter()
-    max_submit = luigi.IntParameter(20)
-    max_atoms = luigi.IntParameter(50)
+    max_submit = luigi.IntParameter(MAX_SUBMIT)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
 
     def requires(self):
         ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
@@ -124,10 +127,10 @@ class Predictions(luigi.WrapperTask):
     model_location = luigi.Parameter()
     block = luigi.TupleParameter((None,))
     xc = luigi.Parameter(XC)
-    max_submit = luigi.IntParameter(20)
+    max_submit = luigi.IntParameter(MAX_SUBMIT)
     priority = luigi.Parameter('gaussian')
     n_sigmas = luigi.FloatParameter(6.)
-    max_atoms = luigi.IntParameter(50)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
 
     def requires(self):
         ''' This is a Luigi wrapper task, so it'll just do anything in this `requires` method '''
@@ -174,8 +177,8 @@ class Surfaces(luigi.WrapperTask):
     ads_list = luigi.ListParameter()
     mpid_list = luigi.ListParameter()
     miller_list = luigi.ListParameter()
-    max_surfaces = luigi.IntParameter(20)
-    max_atoms = luigi.IntParameter(50)
+    max_surfaces = luigi.IntParameter(MAX_SUBMIT)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
 
     def requires(self):
         # Create parameters for every mpid/surface pairing
@@ -245,8 +248,8 @@ class BestSurfaces(luigi.WrapperTask):
     xc = luigi.Parameter(XC)
     ads_list = luigi.ListParameter()
     performance_threshold = luigi.FloatParameter(0.1)
-    max_surfaces = luigi.IntParameter(20)
-    max_atoms = luigi.IntParameter(50)
+    max_surfaces = luigi.IntParameter(MAX_SUBMIT)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
 
     def requires(self):
         # Unpack the data structure
@@ -315,3 +318,72 @@ class BestSurfaces(luigi.WrapperTask):
                 yield Surfaces(xc=self.xc, ads_list=self.ads_list,
                                mpid_list=[mpid], miller_list=[miller],
                                max_surfaces=1, max_atoms=self.max_atoms)
+
+
+class Explorations(luigi.WrapperTask):
+    '''
+    This task will queue up a random assortment of adsorption sites that have brand new
+    properties that we have not yet simulated. It is meant to be used as a learning seed
+    when adding new materials to the catalog.
+
+    Special input:
+        fingerprints    A sequence of strings indicating which property you want to explore.
+                        If this string does not appear in `gaspy.defaults.fingerprints`,
+                        then you need to specify the `queries` argument
+        queries         A sequence of strings corresponding to `fingerprints` that contain
+                        the appropriate mongo/GASdb queries to find the fingerprints.
+                        This is only needed if there are any fingerprints that are not
+                        in the default set of fingerprints. The length of this sequence
+                        must be equal to the length of `fingerprints`. Any queries
+                        provided for default fingerprints will be ignored.
+    '''
+    # Set default values. And define arguments.
+    ads_list = luigi.ListParameter()
+    xc = luigi.Parameter(XC)
+    max_submit = luigi.IntParameter(MAX_SUBMIT)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
+    fingerprints = luigi.ListParameter()
+    queries = luigi.ListParameter()
+
+    def requires(self):
+        # Set the fingerprints that we use to pull/create the mongo documents
+        fingerprints = defaults.fingerprints()
+        for i, fp in enumerate(self.fingerprints):
+            if fp not in fingerprints:
+                fingerprints[fp] = self.queries[i]
+        # Calculate the number of submissions we're allowed to do per adsorbate
+        submit_per_ads = self.max_submit/len(self.ads_list)
+
+        # Pull out everything that we have and have not simulated so far
+        for ads in self.ads_list:
+            sim_docs, _ = gasdb.get_docs(adsorbates=[ads],
+                                         calc_settings=self.xc,
+                                         fingerprints=fingerprints)
+            unsim_docs, _ = gasdb.unsimulated_catalog([ads],
+                                                      calc_settings=self.xc,
+                                                      fingerprints=fingerprints)
+            # Figure out what "tags" we've already explored, where a "tag"
+            # is a tuple of the values of the fingerprints that matter.
+            # Note that we turn `explored_tags` into a dictionary for fast lookup
+            explored_tags = []
+            for doc in sim_docs:
+                try:
+                    tag = [doc[fp] for fp in self.fingerprints]
+                except KeyError:
+                    warnings.warn('The "%s" fingerprint was not found in the following document; skipping this doc\n%s'
+                                  % (fp, doc), RuntimeWarning)
+                explored_tags.append(tuple(tag))
+            explored_tags = dict.fromkeys(explored_tags)
+            # Filter out items that we have already simulated
+            docs_to_explore = []
+            for doc in unsim_docs:
+                tag = [doc[fp] for fp in self.fingerprints]
+                if tuple(tag) not in explored_tags:
+                    docs_to_explore.append(doc)
+
+            # Queue up the things that we want to explore in a randomized order
+            parameters_list = c_param._make_parameters_list(docs_to_explore, ads,
+                                                            prioritization='random',
+                                                            max_predictions=submit_per_ads)
+            for parameters in parameters_list:
+                yield FingerprintRelaxedAdslab(parameters=parameters)
