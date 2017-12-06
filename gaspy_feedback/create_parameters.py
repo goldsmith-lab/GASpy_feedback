@@ -93,8 +93,7 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
         prediction_min      The lower-bound of the prediction window that we want to hit
         prediction_target   The exact point in the prediction window that we want to hit
         prediction_max      The upper-bound of the prediction window that we want to hit
-        pkl                 The location of the GASpyRegressor instance that we want to
-                            make predictions with
+        pkl                 The location of the pickled predictions. See `gaspy_regress.predict`
         block               The block of the model that we want to use to make predictions with
         prioritization      A string that we pass to the `_make_parameters_list` function.
                             Reference that function for more details.
@@ -106,26 +105,14 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
         parameters_list     A list of `parameters` dictionaries that we may pass
                             to GASpy
     '''
-    # Load the catalog data
-    docs, p_docs = gasdb.unsimulated_catalog([adsorbate],
-                                             calc_settings=calc_settings,
-                                             fingerprints=fingerprints,
-                                             max_atoms=max_atoms)
-
-    # Load the model
+    # Pull and unpack the predictions
     with open(pkl, 'rb') as f:
-        regressor = pickle.load(f)
-    # Catalog documents don't have any information about adsorbates. But if our
-    # model requires information about adsorbates, then we probably need to put
-    # it in. Note that we wrap an EAFP around it to check for hierarchical models.
-    try:
-        if 'ads' in regressor.features + regressor.features_inner:
-            p_docs['adsorbates'] = [[adsorbate]] * len(docs)
-    except AttributeError:
-        if 'ads' in regressor.features:
-            p_docs['adsorbates'] = [[adsorbate]] * len(docs)
-    # Make the predictions
-    predictions = regressor.predict(p_docs, block)
+        data_ball = pickle.load(f)
+    sim_data, unsim_data = data_ball
+    docs, data = zip(*unsim_data)
+    x_data, y_data = zip(*data)
+    x, x_u = zip(*x_data)
+    predictions = x
 
     # Trim the mongo documents and the predictions according to our prediction boundaries
     prediction_mask = (-(prediction_min < np.array(predictions)) -

@@ -100,31 +100,31 @@ class Predictions(luigi.WrapperTask):
     on the catalog, and then queue simulations that match a specified target.
 
     Special inputs:
-        prediction_min      A float indicating a lower-bound for whatever property you are
-                            predicting. Note that this may not be a "hard minimum" if you
-                            choose particular priority methods, like 'gaussian'
-        prediction_target   A float indicating the target you are trying to hit regarding
-                            your predictions.
-        prediction_max      A float indicating an upper-bound for whatever property you are
-                            predicting. Note that this may not be a "hard maximum" if you
-                            choose particular priority methods, like 'gaussian'
-        model_location      A string indicating the location of the fitted instance of
-                            GASpyRegressor that you are using
-        block               The block of the model that you are using to make predictions.
-        priority            The way in which you want to prioritize the simulations.
-                            Can probably be `targeted`, `random`, or `gaussian`.
-                            See `gaspy_feedback.create_parameters._make_parameters_list`
-                            for more details.
-        n_sigmas            If priority == 'gaussian' or some other probability distribution
-                            function, then it needs a standard deviation associated with it.
-                            You may set it here. A higher value here yields a tighter targeting.
+        prediction_min          A float indicating a lower-bound for whatever property you are
+                                predicting. Note that this may not be a "hard minimum" if you
+                                choose particular priority methods, like 'gaussian'
+        prediction_target       A float indicating the target you are trying to hit regarding
+                                your predictions.
+        prediction_max          A float indicating an upper-bound for whatever property you are
+                                predicting. Note that this may not be a "hard maximum" if you
+                                choose particular priority methods, like 'gaussian'
+        predictions_location    A string indicating the location of the fitted instance of
+                                GASpyRegressor that you are using
+        block                   The block of the model that you are using to make predictions.
+        priority                The way in which you want to prioritize the simulations.
+                                Can probably be `targeted`, `random`, or `gaussian`.
+                                See `gaspy_feedback.create_parameters._make_parameters_list`
+                                for more details.
+        n_sigmas                If priority == 'gaussian' or some other probability distribution
+                                function, then it needs a standard deviation associated with it.
+                                You may set it here. A higher value here yields a tighter targeting.
     '''
     # Set default values
     ads_list = luigi.ListParameter()
     prediction_min = luigi.FloatParameter(-4.)
     prediction_target = luigi.FloatParameter()
     prediction_max = luigi.FloatParameter(4.)
-    model_location = luigi.Parameter()
+    predictions_location = luigi.Parameter()
     block = luigi.TupleParameter((None,))
     xc = luigi.Parameter(XC)
     max_submit = luigi.IntParameter(MAX_SUBMIT)
@@ -144,7 +144,7 @@ class Predictions(luigi.WrapperTask):
                                                        self.prediction_min,
                                                        self.prediction_target,
                                                        self.prediction_max,
-                                                       pkl=self.model_location,
+                                                       pkl=self.predictions_location,
                                                        block=self.block,
                                                        calc_settings=self.xc,
                                                        max_predictions=submit_per_ads,

@@ -19,7 +19,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --prediction-min -2.6 \
     --prediction-max 1.4 \
     --prediction-target -0.60 \
-    --model-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+    --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CO2RR_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("CO",)' \
     --xc 'rpbe' \
