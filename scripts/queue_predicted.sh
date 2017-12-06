@@ -2,7 +2,7 @@
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --partition=regular
 #SBATCH --job-name=queue_predicted
 #SBATCH --output=queue_predicted-%j.out
@@ -45,7 +45,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --prediction-min -2.28 \
     --prediction-max 1.72 \
     --prediction-target -0.28 \
-    --model-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+    --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/HER_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("H",)' \
     --xc 'rpbe' \
