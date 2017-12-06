@@ -1,4 +1,13 @@
-#!/bin/sh
+#!/bin/sh -l
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=01:30:00
+#SBATCH --partition=regular
+#SBATCH --job-name=explore
+#SBATCH --output=explore-%j.out
+#SBATCH --error=explore-%j.error
+#SBATCH --constraint=haswell
 
 # Go back to home directory, then go to GASpy
 cd
@@ -21,7 +30,6 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-submit 200 \
     --scheduler-host $luigi_port \
-    --workers=4 \
+    --workers=1 \
     --log-level=WARNING \
-    --parallel-scheduling \
     --worker-timeout 300 
