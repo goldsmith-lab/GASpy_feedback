@@ -2,7 +2,7 @@
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=00:20:00
+#SBATCH --time=00:30:00
 #SBATCH --partition=regular
 #SBATCH --job-name=queue_best_surfaces
 #SBATCH --output=queue_best_surfaces-%j.out
