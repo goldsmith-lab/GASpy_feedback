@@ -9,19 +9,12 @@
 #SBATCH --error=queue_best_surfaces-%j.error
 #SBATCH --constraint=haswell
 
-# Go back to home directory, then go to GASpy
-cd
-cd GASpy/
-# Get path information from the .gaspyrc.json file
-conda_path="$(python .read_rc.py conda_path)"
-luigi_port="$(python .read_rc.py luigi_port)"
-
-# Load the appropriate environment, etc.
-module load python
-cd GASpy_feedback/gaspy_feedback
-source activate $conda_path
+# Load GASpy
+. ~/GASpy/scripts/load_env.sh
+cd  $GASPY_FB_PATH/gaspy_feedback
 
 # Use Luigi to queue various surfaces for simulation
+
 PYTHONPATH=$PYTHONPATH luigi \
     --module feedback BestSurfaces \
     --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CO2RR_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \

@@ -9,17 +9,9 @@
 #SBATCH --error=queue_predicted-%j.error
 #SBATCH --constraint=haswell
 
-# Go back to home directory, then go to GASpy
-cd
-cd GASpy/
-# Get path information from the .gaspyrc.json file
-conda_path="$(python .read_rc.py conda_path)"
-luigi_port="$(python .read_rc.py luigi_port)"
-
-# Load the appropriate environment, etc.
-module load python
-cd GASpy_feedback/gaspy_feedback
-source activate $conda_path
+# Load GASpy
+. ~/GASpy/scripts/load_env.sh
+cd $GASPY_FB_PATH/gaspy_feedback
 
 # CO2RR:  Tell Luigi to queue various simulations based on a model's predictions
 PYTHONPATH=$PYTHONPATH luigi \
