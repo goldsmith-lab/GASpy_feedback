@@ -21,7 +21,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --queries '["$processed_data.calculation_info.fp_init.coordination"]' \
     --xc 'rpbe' \
     --max-submit 200 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
     --worker-timeout 300 

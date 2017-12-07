@@ -13,7 +13,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 1, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -26,7 +26,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 0, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -39,7 +39,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 0, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -52,7 +52,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 0, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -65,7 +65,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 1, 1]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -78,7 +78,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[2, 1, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -91,7 +91,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 1, 1]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -104,7 +104,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[2, 1, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -117,7 +117,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 1, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -130,7 +130,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 1, 1]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -143,7 +143,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[0, 0, 1]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \
@@ -156,7 +156,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --miller-list '[[1, 0, 0]]' \
     --xc 'rpbe' \
     --max-surfaces 1 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --parallel-scheduling \
     --log-level=WARNING \

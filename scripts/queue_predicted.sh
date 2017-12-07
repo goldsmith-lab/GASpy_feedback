@@ -25,7 +25,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --block '("CO",)' \
     --xc 'rpbe' \
     --max-submit 350 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
     --worker-timeout 300 
@@ -42,7 +42,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --block '("H",)' \
     --xc 'rpbe' \
     --max-submit 350 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
     --worker-timeout 300 

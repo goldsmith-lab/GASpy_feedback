@@ -22,7 +22,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --ads-list '["CO"]' \
     --performance-threshold 0.1 \
     --max-surfaces 8 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
     --worker-timeout 300
@@ -34,7 +34,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --ads-list '["H"]' \
     --performance-threshold 0.1 \
     --max-surfaces 8 \
-    --scheduler-host $luigi_port \
+    --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
     --worker-timeout 300
