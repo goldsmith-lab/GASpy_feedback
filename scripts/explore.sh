@@ -9,18 +9,17 @@
 #SBATCH --error=explore-%j.error
 #SBATCH --constraint=haswell
 
-# Load GASpy
-. ~/GASpy/scripts/load_env.sh
-cd $GASPY_FB_PATH/gaspy_feedback
+# Load GASpy environment and variables
+. ../../.load_env.sh
 
 # Tell Luigi to queue various simulations based on a model's predictions
 PYTHONPATH=$PYTHONPATH luigi \
-    --module feedback Explorations \
+    --module gaspy_feedback.feedback Explorations \
     --ads-list '["CO", "H", "C", "O", "OH"]' \
     --fingerprints '["coordination"]' \
     --queries '["$processed_data.calculation_info.fp_init.coordination"]' \
     --xc 'rpbe' \
-    --max-submit 200 \
+    --max-submit 400 \
     --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \

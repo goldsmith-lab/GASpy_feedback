@@ -9,13 +9,12 @@
 #SBATCH --error=queue_predicted-%j.error
 #SBATCH --constraint=haswell
 
-# Load GASpy
-. ~/GASpy/scripts/load_env.sh
-cd $GASPY_FB_PATH/gaspy_feedback
+# Load GASpy environment and variables
+. ../../.load_env.sh
 
 # CO2RR:  Tell Luigi to queue various simulations based on a model's predictions
 PYTHONPATH=$PYTHONPATH luigi \
-    --module feedback Predictions \
+    --module gaspy_feedback.feedback Predictions \
     --ads-list '["CO"]' \
     --prediction-min -2.6 \
     --prediction-max 1.4 \
@@ -24,7 +23,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --priority 'gaussian' \
     --block '("CO",)' \
     --xc 'rpbe' \
-    --max-submit 350 \
+    --max-submit 100 \
     --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
@@ -32,7 +31,7 @@ PYTHONPATH=$PYTHONPATH luigi \
 
 # HER:  Tell Luigi to queue various simulations based on a model's predictions
 PYTHONPATH=$PYTHONPATH luigi \
-    --module feedback Predictions \
+    --module gaspy_feedback.feedback Predictions \
     --ads-list '["H"]' \
     --prediction-min -2.28 \
     --prediction-max 1.72 \
@@ -41,7 +40,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --priority 'gaussian' \
     --block '("H",)' \
     --xc 'rpbe' \
-    --max-submit 350 \
+    --max-submit 100 \
     --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \

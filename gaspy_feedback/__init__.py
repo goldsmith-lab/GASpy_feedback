@@ -7,7 +7,7 @@ __author__ = 'Kevin Tran'
 __email__ = 'ktran@andrew.cmu.edu'
 
 
-from . import create_parameters
+# from . import create_parameters
 
 # Luigi cannot handle modules that have relative imports, which means that
 # task-containing modules cannot be part of packages. Do not try to add them
