@@ -1,7 +1,7 @@
 #!/bin/sh -l
 
 # Load GASpy environment and variables
-. ../../.load_env.sh
+. ~/GASpy/.load_env.sh
 
 # Use Luigi to queue various surfaces for simulation
 

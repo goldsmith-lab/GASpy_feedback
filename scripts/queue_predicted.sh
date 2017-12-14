@@ -10,7 +10,7 @@
 #SBATCH --constraint=haswell
 
 # Load GASpy environment and variables
-. ../../.load_env.sh
+. ~/GASpy/.load_env.sh
 
 # CO2RR:  Tell Luigi to queue various simulations based on a model's predictions
 PYTHONPATH=$PYTHONPATH luigi \
