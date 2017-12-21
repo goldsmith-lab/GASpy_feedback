@@ -3,6 +3,11 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=03:00:00
+#!/bin/sh -l
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=01:00:00
 #SBATCH --partition=regular
 #SBATCH --job-name=control_queue
 #SBATCH --output=control_queue-%j.out
@@ -47,6 +52,71 @@ n_exp=$((err * sp_exp / (100 - f_exp)))
 n_pred=$((err * sp_pred / (100 - f_pred)))
 n_best_surfs=$((err * sp_best_surfs / (100 - f_best_surfs)))
 n_surfs=$((err * sp_surfs / (100 - f_surfs)))
+
+##### Simultaneously implement control of queue length and update dynamic variables #####
+# Explorations
+if [ "$n_exp" -gt "0" ]; then
+    # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
+    q0=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    bash $path/explore.sh $n_exp
+    qf=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    dq=$((qf - q0))
+    # Modify the failure rate
+    if [ "dq" -ne "0" ]; then  # Calculate the rate only if it's not 100% (to prevent singularities)
+        f_exp=$((100 - 100 * dq / n_exp))
+    else
+        f_exp=90  # Approximate total failure with a high failure
+    fi
+    sed -i "s/f_exp=.*/f_exp=$f_exp/g" $path/control_variables.txt
+fi
+# Predictions
+if [ "$n_pred" -gt "0" ]; then
+    # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
+    q0=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    bash $path/queue_predicted.sh $n_pred
+    qf=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    dq=$((qf - q0))
+    # Modify the failure rate
+    f_pred=$((100 - 100 * dq / n_pred))
+    if [ "dq" -ne "0" ]; then  # Calculate the rate only if it's not 100% (to prevent singularities)
+        f_exp=$((100 - 100 * dq / n_pred))
+    else
+        f_exp=90  # Approximate total failure with a high failure
+    fi
+    sed -i "s/f_pred=.*/f_pred=$f_pred/g" $path/control_variables.txt
+fi
+# Best surfaces
+if [ "$n_best_surfs" -gt "0" ]; then
+    # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
+    q0=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    bash $path/queue_best_surfaces.sh $n_best_surfs
+    qf=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    dq=$((qf - q0))
+    # Modify the failure rate
+    f_best_surfs=$((100 - 100 * dq / n_best_surfs))
+    if [ "dq" -ne "0" ]; then  # Calculate the rate only if it's not 100% (to prevent singularities)
+        f_exp=$((100 - 100 * dq / n_best_surfs))
+    else
+        f_exp=90  # Approximate total failure with a high failure
+    fi
+    sed -i "s/f_best_surfs=.*/f_best_surfs=$f_best_surfs/g" $path/control_variables.txt
+fi
+# Surface blaster
+if [ "$n_surfs" -gt "0" ]; then
+    # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
+    q0=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    bash $path/queue_surfaces.sh $n_surfs
+    qf=$(lpad -l $LPAD_PATH report | grep READY | head -1 | grep -o -E '[0-9]+')
+    dq=$((qf - q0))
+    # Modify the failure rate
+    f_surfs=$((100 - 100 * dq / n_surfs))
+    if [ "dq" -ne "0" ]; then  # Calculate the rate only if it's not 100% (to prevent singularities)
+        f_exp=$((100 - 100 * dq / n_surfs))
+    else
+        f_exp=90  # Approximate total failure with a high failure
+    fi
+    sed -i "s/f_surfs=.*/f_surfs=$f_surfs/g" $path/control_variables.txt
+fi
 
 ##### Simultaneously implement control of queue length and update dynamic variables #####
 # Explorations

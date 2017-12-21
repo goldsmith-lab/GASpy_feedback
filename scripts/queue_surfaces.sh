@@ -10,6 +10,16 @@ n_systems=12
 sites_per_surface=4
 surfaces_per_system=$((n_submissions / n_systems / sites_per_surface))
 
+# Load the input argument (i.e., the number of requested submissions).
+# Defaults to 100 total submissions. Note that you should change `n_systems` manually
+# if you add or subtract systems
+n_submissions=${1:-100}
+n_systems=12
+# Calculate how many surfaces we should be submitted per system based on some rough
+# ballpark figures. Feel free to change them.
+sites_per_surface=4
+surfaces_per_system=$((n_submissions / n_systems / sites_per_surface))
+
 # Load GASpy environment and variables
 . ~/GASpy/.load_env.sh
 
