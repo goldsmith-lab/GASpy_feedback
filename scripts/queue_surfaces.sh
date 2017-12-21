@@ -1,4 +1,4 @@
-#!/bin/sh -l
+#!/bin/bash -l
 
 # Load the input argument (i.e., the number of requested submissions).
 # Defaults to 100 total submissions. Note that you should change `n_systems` manually
