@@ -3,3 +3,4 @@
 *.out
 *.log
 .ipynb_checkpoints/
+scripts/control_variables.txt

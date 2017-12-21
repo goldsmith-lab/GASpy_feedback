@@ -9,6 +9,13 @@
 #SBATCH --error=queue_predicted-%j.error
 #SBATCH --constraint=haswell
 
+# Load the input argument (i.e., the number of requested submissions).
+# Defaults to 100 total submissions. Note that you should change `n_systems` manually
+# if you add or subtract systems
+n_submissions=${1:-100}
+n_systems=2
+submissions_per_system=$((n_submissions / n_systems))
+
 # Load GASpy environment and variables
 . ~/GASpy/.load_env.sh
 
@@ -23,7 +30,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --priority 'gaussian' \
     --block '("CO",)' \
     --xc 'rpbe' \
-    --max-submit 100 \
+    --max-submit $submissions_per_system \
     --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
@@ -40,7 +47,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --priority 'gaussian' \
     --block '("H",)' \
     --xc 'rpbe' \
-    --max-submit 100 \
+    --max-submit $submissions_per_system \
     --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
