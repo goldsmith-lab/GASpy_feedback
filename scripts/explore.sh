@@ -9,6 +9,9 @@
 #SBATCH --error=explore-%j.error
 #SBATCH --constraint=haswell
 
+# Load the input argument (i.e., the number of requested submissions).
+n_submissions=${1:-100}
+
 # Load GASpy environment and variables
 . ~/GASpy/.load_env.sh
 
@@ -19,7 +22,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --fingerprints '["coordination"]' \
     --queries '["$processed_data.calculation_info.fp_init.coordination"]' \
     --xc 'rpbe' \
-    --max-submit 400 \
+    --max-submit $n_submissions \
     --scheduler-host $LUIGI_PORT \
     --workers=1 \
     --log-level=WARNING \
