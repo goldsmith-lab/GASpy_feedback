@@ -25,7 +25,7 @@ sp_surfs=0
 
 ##### Read system variables #####
 # The full folder that this file is in
-path=$(cd -P "$(dirname "$_")" && pwd)
+path=$(cd -P "$(dirname "$0")" && pwd)
 # Load GASpy environment and variables
 . ~/GASpy/.load_env.sh
 # Input argument:  The time interval for control (in hrs/batch of submission). Defaults to 3.
