@@ -19,8 +19,8 @@ n_submissions=${1:-100}
 PYTHONPATH=$PYTHONPATH luigi \
     --module gaspy_feedback.feedback Explorations \
     --ads-list '["CO", "H", "C", "O", "OH"]' \
-    --fingerprints '["coordination"]' \
-    --queries '["$processed_data.calculation_info.fp_init.coordination"]' \
+    --fingerprints '["coordination", "neighborcoord"]' \
+    --queries '["$processed_data.calculation_info.fp_init.coordination", "$processed_data.fp_init.neighborcoord"]' \
     --xc 'rpbe' \
     --max-submit $n_submissions \
     --scheduler-host $LUIGI_PORT \
