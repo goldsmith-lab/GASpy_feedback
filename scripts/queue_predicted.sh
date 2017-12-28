@@ -40,9 +40,9 @@ PYTHONPATH=$PYTHONPATH luigi \
 PYTHONPATH=$PYTHONPATH luigi \
     --module gaspy_feedback.feedback Predictions \
     --ads-list '["H"]' \
-    --prediction-min -2.28 \
-    --prediction-max 1.72 \
-    --prediction-target -0.28 \
+    --prediction-min -2.27 \
+    --prediction-max 1.73 \
+    --prediction-target -0.27 \
     --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/HER_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("H",)' \
