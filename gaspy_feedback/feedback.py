@@ -36,7 +36,7 @@ from tasks import FingerprintRelaxedAdslab, GenerateSlabs  # noqa: E402
 # Load the default exchange correlational from the .gaspyrc.json file
 XC = configs['default_xc']
 MAX_SUBMIT = 20
-MAX_ATOMS = 50
+MAX_ATOMS = 80
 
 
 class RandomAdslabs(luigi.WrapperTask):

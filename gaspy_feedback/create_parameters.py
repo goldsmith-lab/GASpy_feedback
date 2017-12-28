@@ -33,7 +33,7 @@ from gaspy_regress.regressor import GASpyRegressor  # noqa: F401
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
 
-def randomly(adsorbate, calc_settings='rpbe', max_predictions=20, max_atoms=None):
+def randomly(adsorbate, calc_settings='rpbe', max_predictions=20, max_atoms=50):
     ''' Call this method if you want n=`max_predictions` completely random things '''
     docs, _ = gasdb.unsimulated_catalog(adsorbate,
                                         calc_settings=calc_settings,
@@ -41,12 +41,13 @@ def randomly(adsorbate, calc_settings='rpbe', max_predictions=20, max_atoms=None
     parameters_list = _make_parameters_list(docs, [adsorbate],
                                             prioritization='random',
                                             max_predictions=max_predictions,
-                                            calc_settings=calc_settings)
+                                            calc_settings=calc_settings,
+                                            max_atoms=max_atoms)
     return parameters_list
 
 
 def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
-                      max_predictions=20, max_atoms=None):
+                      max_predictions=20, max_atoms=50):
     '''
     Call this method if you want n=`max_predictions` random sites that have already been
     relaxed with `adsorbate` on top. This method is useful for comparing a new adsorbate
@@ -81,13 +82,14 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
     parameters_list = _make_parameters_list(docs, adsorbate,
                                             prioritization='random',
                                             max_predictions=max_predictions,
-                                            calc_settings=calc_settings)
+                                            calc_settings=calc_settings,
+                                            max_atoms=max_atoms)
     return parameters_list
 
 
 def from_predictions(adsorbate, prediction_min, prediction_target, prediction_max,
                      pkl=None, block=(None,), calc_settings='rpbe', max_predictions=20,
-                     prioritization='gaussian', n_sigmas=6., fingerprints=None, max_atoms=None):
+                     prioritization='gaussian', n_sigmas=6., fingerprints=None, max_atoms=50):
     '''
     Special input:
         prediction_min      The lower-bound of the prediction window that we want to hit
@@ -125,6 +127,7 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
                                             prioritization=prioritization,
                                             max_predictions=max_predictions,
                                             calc_settings=calc_settings,
+                                            max_atoms=max_atoms,
                                             target=prediction_target,
                                             values=predictions,
                                             n_sigmas=n_sigmas)
@@ -132,7 +135,7 @@ def from_predictions(adsorbate, prediction_min, prediction_target, prediction_ma
 
 
 def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
-                          calc_settings='rpbe', target=None, values=None, n_sigmas=6.):
+                          calc_settings='rpbe', max_atoms=50, target=None, values=None, n_sigmas=6.):
     '''
     Given a list of mongo doc dictionaries, this method will decide which of those
     docs to convert into `parameters` dictionaries for further processing.
@@ -256,8 +259,11 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
                                                        shift=doc['shift'],
                                                        settings=calc_settings)
             # Finally:  Create the new parameters
-            parameters_list.append(OrderedDict(bulk=defaults.bulk_parameters(doc['mpid'], settings=calc_settings),
-                                               gas=defaults.gas_parameters(adsorbate, settings=calc_settings),
+            parameters_list.append(OrderedDict(bulk=defaults.bulk_parameters(doc['mpid'],
+                                                                             settings=calc_settings,
+                                                                             max_atoms=max_atoms),
+                                               gas=defaults.gas_parameters(adsorbate,
+                                                                           settings=calc_settings),
                                                slab=slab_parameters,
                                                adsorption=adsorption_parameters))
     return parameters_list
