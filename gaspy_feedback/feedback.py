@@ -362,24 +362,35 @@ class Explorations(luigi.WrapperTask):
             unsim_docs, _ = gasdb.unsimulated_catalog([ads],
                                                       calc_settings=self.xc,
                                                       fingerprints=fingerprints)
+
+            # Make a function to pull out a "tag", which is a [possibly nested] tuple
+            # of the values of the fingerprints that matter.
+            def pull_tag(doc):
+                tag = []
+                for fp in self.fingerprints:
+                    try:
+                        _tag = doc[fp]
+                        if isinstance(_tag, list):
+                            _tag = tuple(_tag)
+                        tag.append(_tag)
+                    except KeyError:
+                        warnings.warn('The "%s" fingerprint was not found in the following document; skipping this doc\n%s')
+                return tuple(tag)
+
             # Figure out what "tags" we've already explored, where a "tag"
             # is a tuple of the values of the fingerprints that matter.
             # Note that we turn `explored_tags` into a dictionary for fast lookup
             explored_tags = []
             for doc in sim_docs:
-                try:
-                    tag = [doc[fp] for fp in self.fingerprints]
-                except KeyError:
-                    warnings.warn('The "%s" fingerprint was not found in the following document; skipping this doc\n%s'
-                                  % (fp, doc), RuntimeWarning)
-                explored_tags.append(tuple(tag))
+                explored_tags.append(pull_tag(doc))
             explored_tags = dict.fromkeys(explored_tags)
             # Filter out items that we have already simulated
             docs_to_explore = []
             for doc in unsim_docs:
-                tag = [doc[fp] for fp in self.fingerprints]
-                if tuple(tag) not in explored_tags:
+                unsim_tag = pull_tag(doc)
+                if unsim_tag not in explored_tags:
                     docs_to_explore.append(doc)
+            print('Still have %i sites left to explore' % (len(docs_to_explore)))
 
             # Queue up the things that we want to explore in a randomized order
             parameters_list = c_param._make_parameters_list(docs_to_explore, ads,
