@@ -32,7 +32,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --performance-threshold 0.1 \
     --max-surfaces $surfaces_per_system \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --log-level=WARNING \
     --worker-timeout 300
 
@@ -44,6 +44,6 @@ PYTHONPATH=$PYTHONPATH luigi \
     --performance-threshold 0.1 \
     --max-surfaces $surfaces_per_system \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --log-level=WARNING \
     --worker-timeout 300

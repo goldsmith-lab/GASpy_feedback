@@ -33,7 +33,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -46,7 +46,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -59,7 +59,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -72,7 +72,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -85,7 +85,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -98,7 +98,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -111,7 +111,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -124,7 +124,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -137,7 +137,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -150,7 +150,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -163,7 +163,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -176,7 +176,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300

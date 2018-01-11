@@ -13,9 +13,9 @@
 
 ##### Defining feedback splits (percents) #####
 # For explorations, predictions, best surfaces, and surface blaster, respectively
-sp_exp=15
-sp_pred=70
-sp_best_surfs=15
+sp_exp=10
+sp_pred=80
+sp_best_surfs=10
 sp_surfs=0
 
 ##### Read system variables #####
