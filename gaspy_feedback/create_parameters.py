@@ -28,7 +28,8 @@ from collections import OrderedDict
 import numpy as np
 import scipy as sp
 import dill as pickle
-from gaspy import defaults, gasdb
+import re
+from gaspy import defaults, gasdb, utils
 from gaspy_regress.regressor import GASpyRegressor  # noqa: F401
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
@@ -197,6 +198,42 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         A 'random' prioritization means that we're just going to pick things at random.
         '''
         random.shuffle(docs)
+        docs = _trim(docs, max_predictions)
+
+    elif prioritization == 'none':
+        '''
+        A 'none' prioritization means that we just use the docs in the order that they came
+        assuming there is already some method in how they were chosen
+        '''
+        docs = _trim(docs, max_predictions)
+
+    elif prioritization == 'CoordinationLength':
+        '''
+        A 'CoordinationLength' prioritization attempts to choose sites to try based on the number of
+        elements in the coordination fingerprint. This focuses resources on small coordination sites
+        which are more likely to be evenly distributed among all elements
+        '''
+        def get_len_coordination(doc):
+            ''' Simple function to get the number of elements in the coordination FP '''
+            try:
+                formula = re.findall(r'([A-Z][a-z]*)(\d*)', doc['formula'])
+                return [len(doc['coordination'].split('-')),
+                        np.sum([int(a[1]) if a[1] != '' else 0 for a in formula])]
+            except KeyError:
+                return 0
+
+        # Sort the submissions by the len of the coordination field,
+        # to target small coordinations first
+        random.shuffle(docs)
+        all_coordination_len = utils.multimap(get_len_coordination, docs)
+        sorted_coords, sorted_inds = zip(*sorted(zip(all_coordination_len, range(len(docs)))))
+        docs = [docs[i] for i in sorted_inds]
+        unique_coord, unique_indices = np.unique([doc['coordination'] for doc in docs],
+                                                 return_index=True)
+        unique_indices = sorted(unique_indices, key=lambda x: sorted_coords[x])
+        docs = [docs[i] for i in unique_indices]
+
+        print([docs[i] for i in range(3)])
         docs = _trim(docs, max_predictions)
 
     elif prioritization == 'gaussian':

@@ -22,7 +22,7 @@ import warnings
 import luigi
 from collections import OrderedDict
 import pickle
-from random import shuffle
+import random
 from gaspy import utils, defaults, gasdb
 import gaspy_feedback.create_parameters as c_param
 
@@ -215,7 +215,7 @@ class Surfaces(luigi.WrapperTask):
                                                                gas=gas))
 
         # Submit for Fingerprinting/Relaxation. We shuffle the list to randomize what we run.
-        shuffle(parameters_list)
+        random.shuffle(parameters_list)
         for i, parameters in enumerate(parameters_list):
             # This filter makes sure we don't accidentally submit too many jobs
             if i <= self.max_surfaces:
@@ -393,8 +393,9 @@ class Explorations(luigi.WrapperTask):
             print('Still have %i sites left to explore' % (len(docs_to_explore)))
 
             # Queue up the things that we want to explore in a randomized order
+            random.seed(42)
             parameters_list = c_param._make_parameters_list(docs_to_explore, ads,
-                                                            prioritization='random',
+                                                            prioritization='CoordinationLength',
                                                             max_predictions=submit_per_ads)
             for parameters in parameters_list:
                 yield FingerprintRelaxedAdslab(parameters=parameters)
