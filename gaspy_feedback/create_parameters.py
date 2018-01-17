@@ -36,9 +36,9 @@ pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
 def randomly(adsorbate, calc_settings='rpbe', max_predictions=20, max_atoms=50):
     ''' Call this method if you want n=`max_predictions` completely random things '''
-    docs, _ = gasdb.unsimulated_catalog(adsorbate,
-                                        calc_settings=calc_settings,
-                                        max_atoms=max_atoms)
+    docs = gasdb.unsimulated_catalog(adsorbate,
+                                     calc_settings=calc_settings,
+                                     max_atoms=max_atoms)
     parameters_list = _make_parameters_list(docs, [adsorbate],
                                             prioritization='random',
                                             max_predictions=max_predictions,
@@ -58,16 +58,16 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
         matching_ads    The adsorbate that you want to compare to.
     '''
     # Find a list of the simulations that we haven't done yet, `cat_docs`
-    cat_docs, _ = gasdb.unsimulated_catalog([adsorbate],
-                                            calc_settings=calc_settings,
-                                            max_atoms=max_atoms)
+    cat_docs = gasdb.unsimulated_catalog([adsorbate],
+                                         calc_settings=calc_settings,
+                                         max_atoms=max_atoms)
     # Find a list of the simulations that we have done, but only on the adsorbate
     # we're trying to match to, `matching_docs`
     with gasdb.get_adsorption_client() as ads_client:
-        matching_docs, _ = gasdb.get_docs(ads_client, 'adsorption',
-                                          calc_settings=calc_settings,
-                                          fingerprints=defaults.fingerprints(),
-                                          adsorbates=[matching_ads])
+        matching_docs = gasdb.get_docs(ads_client, 'adsorption',
+                                       calc_settings=calc_settings,
+                                       fingerprints=defaults.fingerprints(),
+                                       adsorbates=[matching_ads])
 
     # Do some hashing so that we can start filtering
     cat_hashes = gasdb.hash_docs(cat_docs, ignore_ads=True)

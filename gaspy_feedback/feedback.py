@@ -289,9 +289,9 @@ class BestSurfaces(luigi.WrapperTask):
             best_surfaces.append(surface)
 
         # Find all of the adsorption sites that we have not yet simulated
-        docs, _ = gasdb.unsimulated_catalog(adsorbates=self.ads_list,
-                                            calc_settings=self.xc,
-                                            max_atoms=self.max_atoms)
+        docs = gasdb.unsimulated_catalog(adsorbates=self.ads_list,
+                                         calc_settings=self.xc,
+                                         max_atoms=self.max_atoms)
         # Figure out the surfaces that we have not yet simulated
         unsim_surfaces = []
         for doc in docs:
@@ -356,12 +356,12 @@ class Explorations(luigi.WrapperTask):
 
         # Pull out everything that we have and have not simulated so far
         for ads in self.ads_list:
-            sim_docs, _ = gasdb.get_docs(adsorbates=[ads],
-                                         calc_settings=self.xc,
-                                         fingerprints=fingerprints)
-            unsim_docs, _ = gasdb.unsimulated_catalog([ads],
-                                                      calc_settings=self.xc,
-                                                      fingerprints=fingerprints)
+            sim_docs = gasdb.get_docs(adsorbates=[ads],
+                                      calc_settings=self.xc,
+                                      fingerprints=fingerprints)
+            unsim_docs = gasdb.unsimulated_catalog([ads],
+                                                   calc_settings=self.xc,
+                                                   fingerprints=fingerprints)
 
             # Make a function to pull out a "tag", which is a [possibly nested] tuple
             # of the values of the fingerprints that matter.
