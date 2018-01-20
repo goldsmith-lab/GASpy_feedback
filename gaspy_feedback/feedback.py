@@ -320,7 +320,7 @@ class BestSurfaces(luigi.WrapperTask):
                                max_surfaces=1, max_atoms=self.max_atoms)
 
 
-class Explorations(luigi.WrapperTask):
+class CoordExplorations(luigi.WrapperTask):
     '''
     This task will queue up a random assortment of adsorption sites that have brand new
     properties that we have not yet simulated. It is meant to be used as a learning seed

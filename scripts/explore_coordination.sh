@@ -15,15 +15,19 @@ n_submissions=${1:-100}
 # Load GASpy environment and variables
 . ~/GASpy/.load_env.sh
 
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+
 # Tell Luigi to queue various simulations based on a model's predictions
 PYTHONPATH=$PYTHONPATH luigi \
-    --module gaspy_feedback.feedback Explorations \
-    --ads-list '["CO", "H", "C", "O", "OH"]' \
+    --module gaspy_feedback.feedback CoordExplorations \
+    --ads-list '["CO", "H"]' \
     --fingerprints '["coordination"]' \
     --queries '["$processed_data.calculation_info.fp_init.coordination"]' \
     --xc 'rpbe' \
     --max-submit $n_submissions \
     --scheduler-host $LUIGI_PORT \
-    --workers=1 \
+    --workers=4 \
     --log-level=WARNING \
-    --worker-timeout 300 
+    --worker-timeout 300

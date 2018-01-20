@@ -29,7 +29,8 @@ import numpy as np
 import scipy as sp
 import dill as pickle
 import re
-from gaspy import defaults, gasdb, utils
+import tqdm
+from gaspy import defaults, gasdb
 from gaspy_regress.regressor import GASpyRegressor  # noqa: F401
 pickle.settings['recurse'] = True     # required to pickle lambdify functions
 
@@ -225,7 +226,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
         # Sort the submissions by the len of the coordination field,
         # to target small coordinations first
         random.shuffle(docs)
-        all_coordination_len = utils.multimap(get_len_coordination, docs)
+        all_coordination_len = [get_len_coordination(doc) for doc in tqdm.tqdm(docs)]
         sorted_coords, sorted_inds = zip(*sorted(zip(all_coordination_len, range(len(docs)))))
         docs = [docs[i] for i in sorted_inds]
         unique_coord, unique_indices = np.unique([doc['coordination'] for doc in docs],
