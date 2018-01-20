@@ -14,6 +14,7 @@
 # if you add or subtract systems
 n_submissions=${1:-100}
 n_systems=2
+n_workers=${2:-4}
 submissions_per_system=$((n_submissions / n_systems))
 
 # Load GASpy environment and variables
@@ -32,7 +33,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-submit $submissions_per_system \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --workers=$n_workers \
     --log-level=WARNING \
     --worker-timeout 300 
 
@@ -49,6 +50,6 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-submit $submissions_per_system \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --workers=$n_workers \
     --log-level=WARNING \
     --worker-timeout 300 

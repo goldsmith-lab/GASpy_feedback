@@ -11,6 +11,7 @@
 
 # Load the input argument (i.e., the number of requested submissions).
 n_submissions=${1:-100}
+n_workers=${2:-4}
 
 # Load GASpy environment and variables
 . ~/GASpy/.load_env.sh
@@ -28,6 +29,6 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-submit $n_submissions \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --workers=$n_workers \
     --log-level=WARNING \
     --worker-timeout 300

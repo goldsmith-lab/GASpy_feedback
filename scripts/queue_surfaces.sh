@@ -5,16 +5,7 @@
 # if you add or subtract systems
 n_submissions=${1:-100}
 n_systems=12
-# Calculate how many surfaces we should be submitted per system based on some rough
-# ballpark figures. Feel free to change them.
-sites_per_surface=4
-surfaces_per_system=$((n_submissions / n_systems / sites_per_surface))
-
-# Load the input argument (i.e., the number of requested submissions).
-# Defaults to 100 total submissions. Note that you should change `n_systems` manually
-# if you add or subtract systems
-n_submissions=${1:-100}
-n_systems=12
+n_workers=${2:-4}
 # Calculate how many surfaces we should be submitted per system based on some rough
 # ballpark figures. Feel free to change them.
 sites_per_surface=4
@@ -33,7 +24,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -46,7 +37,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -59,7 +50,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -72,7 +63,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -85,7 +76,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -98,7 +89,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -111,7 +102,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -124,7 +115,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -137,7 +128,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -150,7 +141,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -163,7 +154,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300
@@ -176,7 +167,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --xc 'rpbe' \
     --max-surfaces $surfaces_per_sytem \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --worksers=$n_workers \
     --parallel-scheduling \
     --log-level=WARNING \
     --worker-timeout 300

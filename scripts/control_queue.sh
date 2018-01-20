@@ -13,9 +13,9 @@
 
 ##### Defining feedback splits (percents) #####
 # For explorations, predictions, best surfaces, and surface blaster, respectively
-sp_exp=10
+sp_exp=0
 sp_pred=80
-sp_best_surfs=10
+sp_best_surfs=20
 sp_surfs=0
 
 ##### Read system variables #####
@@ -23,8 +23,11 @@ sp_surfs=0
 . ~/GASpy/.load_env.sh
 # The full folder that this file is in
 path="$GASPY_PATH/GASpy_feedback/scripts"
-# Input argument:  The time interval for control (in hrs/batch of submission). Defaults to 6.
+# Input arguments
+# The time interval for control (in hrs/batch of submission). Defaults to 6.
 interval=${1:-6}
+# The number of workers to use when creating rockets. Defaults to 1
+n_workers=${2:-1}
 
 ##### Read dynamic variables #####
 # Failure rates (in percentages) for exploration, predictions, best surfaces, and surface blaster, respectively
@@ -53,7 +56,7 @@ n_surfs=$((err * sp_surfs / (100 - f_surfs)))
 if [ "$n_exp" -gt "0" ]; then
     # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
     q0=$(lpad -l $LPAD_PATH get_fws -d count)
-    bash $path/explore.sh $n_exp
+    bash $path/queue_coord_exploration.sh $n_exp $n_workers
     qf=$(lpad -l $LPAD_PATH get_fws -d count)
     dq=$((qf - q0))
     # Modify the failure rate
@@ -68,7 +71,7 @@ fi
 if [ "$n_pred" -gt "0" ]; then
     # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
     q0=$(lpad -l $LPAD_PATH get_fws -d count)
-    bash $path/queue_predicted.sh $n_pred
+    bash $path/queue_predicted.sh $n_pred $n_workers
     qf=$(lpad -l $LPAD_PATH get_fws -d count)
     dq=$((qf - q0))
     # Modify the failure rate
@@ -83,7 +86,7 @@ fi
 if [ "$n_best_surfs" -gt "0" ]; then
     # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
     q0=$(lpad -l $LPAD_PATH get_fws -d count)
-    bash $path/queue_best_surfaces.sh $n_best_surfs
+    bash $path/queue_best_surfaces.sh $n_best_surfs $n_workers
     qf=$(lpad -l $LPAD_PATH get_fws -d count)
     dq=$((qf - q0))
     # Modify the failure rate
@@ -98,7 +101,7 @@ fi
 if [ "$n_surfs" -gt "0" ]; then
     # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
     q0=$(lpad -l $LPAD_PATH get_fws -d count)
-    bash $path/queue_surfaces.sh $n_surfs
+    bash $path/queue_surfaces.sh $n_surfs $n_workers
     qf=$(lpad -l $LPAD_PATH get_fws -d count)
     dq=$((qf - q0))
     # Modify the failure rate

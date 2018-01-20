@@ -13,6 +13,7 @@
 # Defaults to 100 total submissions. Note that you should change `n_systems` manually
 # if you add or subtract systems
 n_submissions=${1:-100}
+n_workers=${2:-4}
 n_systems=3
 # Calculate how many surfaces we should be submitted per system based on some rough
 # ballpark figures. Feel free to change them.
@@ -32,7 +33,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --performance-threshold 0.1 \
     --max-surfaces $surfaces_per_system \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --workers=$n_workers \
     --log-level=WARNING \
     --worker-timeout 300
 
@@ -44,6 +45,6 @@ PYTHONPATH=$PYTHONPATH luigi \
     --performance-threshold 0.1 \
     --max-surfaces $surfaces_per_system \
     --scheduler-host $LUIGI_PORT \
-    --workers=4 \
+    --workers=$n_workers \
     --log-level=WARNING \
     --worker-timeout 300
