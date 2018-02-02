@@ -30,8 +30,7 @@ import gaspy_feedback.create_parameters as c_param
 configs = utils.read_rc()
 tasks_path = configs['gaspy_path'] + '/gaspy'
 sys.path.insert(0, tasks_path)
-from tasks import FingerprintRelaxedAdslab, GenerateSlabs  # noqa: E402
-
+from tasks import FingerprintRelaxedAdslab, GenerateSlabs, MatchCatalogShift  # noqa: E402
 
 # Load the default exchange correlational from the .gaspyrc.json file
 XC = configs['default_xc']
@@ -185,7 +184,7 @@ class Surfaces(luigi.WrapperTask):
         parameters_list = []
         for mpid in self.mpid_list:
             for miller in self.miller_list:
-                bulk = defaults.bulk_parameters(mpid, settings=self.xc)
+                bulk = defaults.bulk_parameters(mpid, settings=self.xc, max_atoms=self.max_atoms)
 
                 # Create the slabs if we have not yet done so
                 GS = GenerateSlabs(parameters={'bulk': bulk,
@@ -398,4 +397,11 @@ class CoordExplorations(luigi.WrapperTask):
                                                             prioritization='CoordinationLength',
                                                             max_predictions=submit_per_ads)
             for parameters in parameters_list:
-                yield FingerprintRelaxedAdslab(parameters=parameters)
+                # We call on the `MatchCatalogShift` task to make sure we set the shifts correctly
+                MCS = MatchCatalogShift(parameters)
+                if MCS.complete():
+                    MCS_shift = pickle.load(MCS.output().open())
+                    parameters['slab']['shift'] = MCS_shift
+                    yield FingerprintRelaxedAdslab(parameters=parameters)
+                else:
+                    yield MCS

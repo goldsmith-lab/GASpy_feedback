@@ -225,6 +225,7 @@ def _make_parameters_list(docs, adsorbate, prioritization, max_predictions=20,
 
         # Sort the submissions by the len of the coordination field,
         # to target small coordinations first
+        random.seed(42)
         random.shuffle(docs)
         all_coordination_len = [get_len_coordination(doc) for doc in tqdm.tqdm(docs)]
         sorted_coords, sorted_inds = zip(*sorted(zip(all_coordination_len, range(len(docs)))))
