@@ -71,8 +71,8 @@ def from_matching_ads(adsorbate, matching_ads, calc_settings='rpbe',
                                        adsorbates=[matching_ads])
 
     # Do some hashing so that we can start filtering
-    cat_hashes = gasdb.hash_docs(cat_docs, ignore_ads=True)
-    matching_hashes = gasdb.hash_docs(matching_docs, ignore_ads=True)
+    cat_hashes = gasdb.hash_docs(cat_docs, ignore_keys=['adsorbate_names'])
+    matching_hashes = gasdb.hash_docs(matching_docs, ignore_keys=['adsorbate_names'])
     # Filter our list of possible simulations by including them
     # only if they're in `matching_docs`
     docs = []
