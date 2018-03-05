@@ -27,7 +27,7 @@ surfaces_per_system=$((n_submissions / n_systems / sites_per_system))
 
 PYTHONPATH=$PYTHONPATH luigi \
     --module gaspy_feedback.feedback BestSurfaces \
-    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CO2RR_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/CO2RR_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --xc 'rpbe' \
     --ads-list '["CO", "H"]' \
     --performance-threshold 0.1 \
@@ -39,7 +39,7 @@ PYTHONPATH=$PYTHONPATH luigi \
 
 PYTHONPATH=$PYTHONPATH luigi \
     --module gaspy_feedback.feedback BestSurfaces \
-    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/HER_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/HER_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --xc 'rpbe' \
     --ads-list '["H"]' \
     --performance-threshold 0.1 \

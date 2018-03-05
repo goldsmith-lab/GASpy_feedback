@@ -27,7 +27,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --prediction-min -2.6 \
     --prediction-max 1.4 \
     --prediction-target -0.60 \
-    --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/CO2RR_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+    --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/CO2RR_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("CO",)' \
     --xc 'rpbe' \
@@ -44,7 +44,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --prediction-min -2.27 \
     --prediction-max 1.73 \
     --prediction-target -0.27 \
-    --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/pkls/HER_predictions_GP_around_TPOT_FEATURES_coordcount_neighbors_coordcounts_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+    --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/HER_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("H",)' \
     --xc 'rpbe' \
