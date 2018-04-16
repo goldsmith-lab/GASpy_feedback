@@ -26,7 +26,7 @@ PYTHONPATH=$PYTHONPATH luigi \
     --ads-list '["CO"]' \
     --prediction-min -2.6 \
     --prediction-max 1.4 \
-    --prediction-target -0.60 \
+    --prediction-target -0.67 \
     --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/CO2RR_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
     --block '("CO",)' \
