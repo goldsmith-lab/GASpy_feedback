@@ -24,8 +24,8 @@ submissions_per_system=$((n_submissions / n_systems))
 PYTHONPATH=$PYTHONPATH luigi \
     --module gaspy_feedback.feedback Predictions \
     --ads-list '["CO"]' \
-    --prediction-min -2.6 \
-    --prediction-max 1.4 \
+    --prediction-min -1.67 \
+    --prediction-max 0.33 \
     --prediction-target -0.67 \
     --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/CO2RR_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
@@ -41,8 +41,8 @@ PYTHONPATH=$PYTHONPATH luigi \
 PYTHONPATH=$PYTHONPATH luigi \
     --module gaspy_feedback.feedback Predictions \
     --ads-list '["H"]' \
-    --prediction-min -2.27 \
-    --prediction-max 1.73 \
+    --prediction-min -1.27 \
+    --prediction-max 0.73 \
     --prediction-target -0.27 \
     --predictions-location '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/HER_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --priority 'gaussian' \
