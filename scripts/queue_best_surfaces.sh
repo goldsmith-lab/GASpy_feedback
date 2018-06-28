@@ -24,27 +24,28 @@ surfaces_per_system=$((n_submissions / n_systems / sites_per_system))
 . ~/GASpy/.load_env.sh
 
 # Use Luigi to queue various surfaces for simulation
-
-PYTHONPATH=$PYTHONPATH luigi \
+# TODO:  The ads-list argument is a bit broken because predictions requires a
+# chemistry-specific databall. We should fix this.
+luigi \
     --module gaspy_feedback.feedback BestSurfaces \
     --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/CO2RR_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
     --xc 'rpbe' \
-    --ads-list '["CO", "H"]' \
-    --performance-threshold 0.1 \
+    --ads-list '["CO"]' \
     --max-surfaces $surfaces_per_system \
+    --performance-threshold 0.1 \
     --scheduler-host $LUIGI_PORT \
     --workers=$n_workers \
     --log-level=WARNING \
     --worker-timeout 300
 
-PYTHONPATH=$PYTHONPATH luigi \
-    --module gaspy_feedback.feedback BestSurfaces \
-    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/HER_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
-    --xc 'rpbe' \
-    --ads-list '["H"]' \
-    --performance-threshold 0.1 \
-    --max-surfaces $surfaces_per_system \
-    --scheduler-host $LUIGI_PORT \
-    --workers=$n_workers \
-    --log-level=WARNING \
-    --worker-timeout 300
+#PYTHONPATH=$PYTHONPATH luigi \
+#    --module gaspy_feedback.feedback BestSurfaces \
+#    --predictions '/global/project/projectdirs/m2755/GASpy/GASpy_regressions/cache/predictions/HER_predictions_TPOT_FEATURES_coordatoms_chemfp0_neighbors_chemfp0_RESPONSES_energy_BLOCKS_adsorbate.pkl' \
+#    --xc 'rpbe' \
+#    --ads-list '["H"]' \
+#    --performance-threshold 0.1 \
+#    --max-surfaces $surfaces_per_system \
+#    --scheduler-host $LUIGI_PORT \
+#    --workers=$n_workers \
+#    --log-level=WARNING \
+#    --worker-timeout 300

@@ -25,7 +25,8 @@ import pickle
 import random
 from gaspy import utils, defaults, gasdb
 import gaspy_feedback.create_parameters as c_param
-
+from gaspy.gasdb import get_catalog_client
+from bson.objectid import ObjectId
 # Find the location of the GASpy tasks so that we can import/use them
 configs = utils.read_rc()
 tasks_path = configs['gaspy_path'] + '/gaspy'
@@ -405,3 +406,88 @@ class CoordExplorations(luigi.WrapperTask):
                     yield FingerprintRelaxedAdslab(parameters=parameters)
                 else:
                     yield MCS
+
+
+class BestSiteBestSurfaces(luigi.WrapperTask):
+    '''
+    This task will queue up and exhaust the adsorption sites of the highest performing
+    surfaces that have not yet been simulated.
+
+    Special inputs:
+        predictions             A string indicating the location of a data ball
+                                created by `gaspy_regress.predict`
+        performance_threshold   A float (between 0 and 1, preferably) that indicates
+                                the minimum level of performance relative to the best
+                                performing surface.
+        max_surfaces            A positive integer indicating the maximum number of surfaces you
+                                want to queue simulations for. We use this in lieu of
+                                `max_submit`, because this task submits surfaces naively. This
+                                means that we ask for simulations on a surface without every
+                                knowing how many sites (and therefore simulations) are on that
+                                surface. This is probably dangerous, but we don't have time to
+                                think of a more elegant solution.
+    '''
+    # Set default values
+    predictions = luigi.Parameter()
+    xc = luigi.Parameter(XC)
+    ads_list = luigi.ListParameter()
+    performance_threshold = luigi.FloatParameter(0.1)
+    max_surfaces = luigi.IntParameter(MAX_SUBMIT)
+    max_atoms = luigi.IntParameter(MAX_ATOMS)
+
+    def requires(self):
+        # Unpack the data structure
+        with open(self.predictions, 'r') as f:
+            data_ball = pickle.load(f)
+        sim_data, unsim_data = data_ball
+        cat_docs, estimations = zip(*unsim_data)
+        _, y_data_est = zip(*estimations)
+        y_est, y_u_est = zip(*y_data_est)
+        # Package the estimations and predictions together, because we don't
+        # really care which they come from. Then zip it up so we can sort everything
+        # at once.
+        docs = list(cat_docs)
+        y = list(y_est)
+        y_u = list(y_u_est)
+        data = zip(docs, y, y_u)
+
+        # Sort the data so that the items with the highest `y` values are
+        # at the beginning of the list
+        # Take out everything that hasn't performed well enough
+        y_max = data[0][1]
+        data = [(doc, _y, _y_u) for doc, _y, _y_u in data
+                if _y > self.performance_threshold*y_max]
+        data = sorted(data, key=lambda datum: datum[1], reverse=True)
+
+        # Find the best performing surfaces
+        catalog_client = get_catalog_client()
+        n = 0
+        tried_fp = []
+        for doc, y, y_u in data:
+            fp_str = str([doc['coordination'], doc['neighborcoord']])
+            n_atoms = catalog_client.find({'_id': ObjectId(doc['mongo_id'])})[0]['atoms']['natoms']
+            if n <= self.max_surfaces and n_atoms < self.max_atoms and fp_str not in tried_fp:
+                tried_fp.append(fp_str)
+                bulk = defaults.bulk_parameters(doc['mpid'], settings=self.xc,
+                                                max_atoms=self.max_atoms)
+                slab = defaults.slab_parameters(doc['miller'],
+                                                doc['top'],
+                                                doc['shift'],
+                                                settings=self.xc)
+                gas = defaults.gas_parameters('CO', settings=self.xc)
+                adsorption = defaults.adsorption_parameters(self.ads_list[0], settings=self.xc)
+                adsorption['adsorbates'][0]['fp'] = {}
+                for key in ['coordination', 'neighborcoord']:
+                    adsorption['adsorbates'][0]['fp'][key] = doc[key]
+                parameters = OrderedDict(bulk=bulk,
+                                         slab=slab,
+                                         adsorption=adsorption,
+                                         gas=gas)
+                MCS = MatchCatalogShift(parameters)
+                if MCS.complete():
+                    MCS_shift = pickle.load(MCS.output().open())
+                    parameters['slab']['shift'] = MCS_shift
+                    yield FingerprintRelaxedAdslab(parameters=parameters)
+                else:
+                    yield MCS
+                n += 1

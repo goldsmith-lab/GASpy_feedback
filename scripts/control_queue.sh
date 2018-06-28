@@ -14,9 +14,10 @@
 ##### Defining feedback splits (percents) #####
 # For explorations, predictions, best surfaces, and surface blaster, respectively
 sp_exp=0
-sp_pred=80
-sp_best_surfs=20
+sp_pred=0
+sp_best_surfs=0
 sp_surfs=0
+sp_best_site_best_surfs=100
 
 ##### Read system variables #####
 # Load GASpy environment and variables
@@ -34,6 +35,7 @@ n_workers=${2:-1}
 f_exp=$(cat $path/control_variables.txt | grep f_exp | grep -o -E '[-]?[0-9]+')
 f_pred=$(cat $path/control_variables.txt | grep f_pred | grep -o -E '[-]?[0-9]+')
 f_best_surfs=$(cat $path/control_variables.txt | grep f_best_surfs | grep -o -E '[-]?[0-9]+')
+f_best_site_surfs=$(cat $path/control_variables.txt | grep f_best_site_surfs | grep -o -E '[-]?[0-9]+')
 f_surfs=$(cat $path/control_variables.txt | grep f_surfs | grep -o -E '[-]?[0-9]+')
 # Calculation rate (jobs/day)
 calc_rate=$(cat $path/control_variables.txt | grep calc_rate | grep -o -E '[0-9]+')
@@ -49,6 +51,7 @@ err=$((Qr - Q))
 n_exp=$((err * sp_exp / (100 - f_exp)))
 n_pred=$((err * sp_pred / (100 - f_pred)))
 n_best_surfs=$((err * sp_best_surfs / (100 - f_best_surfs)))
+n_best_site_best_surfs=$((err * sp_best_site_best_surfs / (100 - f_best_site_best_surfs)))
 n_surfs=$((err * sp_surfs / (100 - f_surfs)))
 
 ##### Simultaneously implement control of queue length and update dynamic variables #####
@@ -110,4 +113,19 @@ if [ "$n_surfs" -gt "0" ]; then
         f_surfs=90
     fi
     sed -i "s/f_surfs=.*/f_surfs=$f_surfs/g" $path/control_variables.txt
+fi
+
+# Best surfaces
+if [ "$n_best_site_best_surfs" -gt "0" ]; then
+    # Sumbit the jobs and calculate the number of jobs actually submitted, `dq`
+    q0=$(lpad -l $LPAD_PATH get_fws -d count)
+    bash $path/queue_best_site_best_surfaces.sh $n_best_site_best_surfs $n_workers
+    qf=$(lpad -l $LPAD_PATH get_fws -d count)
+    dq=$((qf - q0))
+    # Modify the failure rate
+    f_best_site_best_surfs=$((100 - 100 * dq / n_best_site_best_surfs))
+    if [ $f_best_surfs -gt "90" ]; then  # To prevent singularities, we keep failure rates below 90
+        f_best_surfs=90
+    fi
+    sed -i "s/f_best_site_best_surfs=.*/f_best_site_best_surfs=$f_best_site_best_surfs/g" $path/control_variables.txt
 fi
