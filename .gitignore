@@ -2,5 +2,6 @@
 *.traj
 *.out
 *.log
+*.swp
 .ipynb_checkpoints/
 scripts/control_variables.txt
