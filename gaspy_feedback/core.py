@@ -15,9 +15,6 @@ from gaspy.gasdb import get_low_coverage_docs_by_surface
 from gaspy.tasks.core import FingerprintRelaxedAdslab
 from gaspy.tasks.submit_calculations.adsorption_calculations import _make_adslab_parameters_from_doc
 
-DEFAULT_ENCUT = defaults.ENCUT
-DEFAULT_XC = defaults.XC
-DEFAULT_MAX_BULK_SIZE = defaults.MAX_NUM_BULK_ATOMS
 DEFAULT_MAX_ROCKETS = 50
 
 
@@ -44,7 +41,13 @@ class BestLowCoverageSitesWithGaussianNoise(luigi.WrapperTask):
         stdev           A float indicating the standard deviation of the Gaussian
                         noise you want to add to the selection.
         xc              A string indicating the cross-correlational you want to use.
-        encut           A float indicating the energy cutoff you want to be used for
+        pp_version      A string indicating which version of VASP
+                        pseudopotentials to use.
+        adslab_encut    A float indicating the energy cutoff you want to be used for
+                        the adsorption relaxation.
+        slab_encut      A float indicating the energy cutoff you want to be used for
+                        the corresponding slab relaxation.
+        bulk_encut      A float indicating the energy cutoff you want to be used for
                         the corresponding bulk relaxation.
         max_bulk_atoms  A positive integer indicating the maximum number of atoms you want
                         in the bulk relaxation.
@@ -57,9 +60,12 @@ class BestLowCoverageSitesWithGaussianNoise(luigi.WrapperTask):
     energy_target = luigi.IntParameter()
     model_tag = luigi.Parameter()
     stdev = luigi.FloatParameter(0.1)
-    xc = luigi.Parameter(DEFAULT_XC)
-    encut = luigi.FloatParameter(DEFAULT_ENCUT)
-    max_bulk_atoms = luigi.IntParameter(DEFAULT_MAX_BULK_SIZE)
+    xc = luigi.Parameter(defaults.XC)
+    pp_version = luigi.Parameter(defaults.PP_VERSION)
+    adslab_encut = luigi.FloatParameter(defaults.ADSLAB_ENCUT)
+    slab_encut = luigi.FloatParameter(defaults.SLAB_ENCUT)
+    bulk_encut = luigi.FloatParameter(defaults.BULK_ENCUT)
+    max_bulk_atoms = luigi.IntParameter(defaults.MAX_NUM_BULK_ATOMS)
     max_rockets = luigi.IntParameter(DEFAULT_MAX_ROCKETS)
 
     def requires(self):
@@ -90,8 +96,11 @@ class BestLowCoverageSitesWithGaussianNoise(luigi.WrapperTask):
         # turn them into parameters and tasks
         for doc in docs:
             parameters = _make_adslab_parameters_from_doc(doc, self.adsorbates,
-                                                          encut=self.encut,
+                                                          encut=self.adslab_encut,
+                                                          slab_encut=self.slab_encut,
+                                                          bulk_encut=self.bulk_encut,
                                                           xc=self.xc,
+                                                          pp_version=self.pp_version,
                                                           max_atoms=self.max_bulk_atoms)
             task_to_make_rocket = FingerprintRelaxedAdslab(parameters=parameters)
             yield task_to_make_rocket
