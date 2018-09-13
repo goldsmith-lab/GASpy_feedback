@@ -15,12 +15,12 @@ co_feedback_task = BestLowCoverageSitesWithGaussianNoise(adsorbates=['CO'],
                                                          energy_target=-0.67,
                                                          model_tag='model0',
                                                          stdev=0.1,
-                                                         max_rockets=100)
+                                                         max_rockets=25)
 h_feedback_task = BestLowCoverageSitesWithGaussianNoise(adsorbates=['H'],
                                                         energy_target=-0.27,
                                                         model_tag='model0',
                                                         stdev=0.1,
-                                                        max_rockets=100)
+                                                        max_rockets=25)
 
 tasks = [co_feedback_task, h_feedback_task]
 run_tasks(tasks)
