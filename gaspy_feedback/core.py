@@ -101,6 +101,6 @@ class BestLowCoverageSitesWithGaussianNoise(luigi.WrapperTask):
                                                           bulk_encut=self.bulk_encut,
                                                           xc=self.xc,
                                                           pp_version=self.pp_version,
-                                                          max_atoms=self.max_bulk_atoms)
+                                                          max_bulk_atoms=self.max_bulk_atoms)
             task_to_make_rocket = FingerprintRelaxedAdslab(parameters=parameters)
             yield task_to_make_rocket
