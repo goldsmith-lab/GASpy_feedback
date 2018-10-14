@@ -88,7 +88,9 @@ def build_rockets():
         run_tasks(tasks, workers=2)
         n_rockets_after = get_num_rockets()
         n_rockets_made = n_rockets_after - n_rockets_before
-        print('%i rockets made successfully out of %i.' % (n_rockets_made, num_rockets_to_build))
+        with open('/global/project/projectdirs/m2755/GASpy_workspaces/GASpy/logs/active_feedback/efficiency.log', 'a') as file_handle:
+            file_handle.write('%i rockets made successfully out of %i.\n'
+                              % (n_rockets_made, num_rockets_to_build))
 
 
 # Run continuously with a 1 hour pause if we are actually above quota.
