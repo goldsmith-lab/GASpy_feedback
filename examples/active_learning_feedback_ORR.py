@@ -69,18 +69,13 @@ def build_rockets():
 
     if rockets_per_task > 0:
 
-        BCSWGN = BestChemistrySitesWithGaussianNoise(adsorbates=['OH','O','OOH'],
+        tasks = BestChemistrySitesWithGaussianNoise(adsorbates=['OH','O','OOH'],
                                     chemistry_tag='orr_onset_potential_4e',
                                      energy_target=1.23, #max ORR potential
                                      model_tag=[model],
                                      stdev=stdev,
                                     max_rocks = rockets_per_task)
         
-        task = BestLowCoverageSitesWithGaussianNoise(adsorbates=adsorbates,
-                                                         energy_target=target,
-                                                         model_tag=model,
-                                                         stdev=stdev,
-                                                         max_rockets=rockets_per_task)
         tasks=[task]
 
         n_rockets_before = get_num_rockets()
