@@ -28,15 +28,14 @@ import time
 import argparse
 from gaspy.utils import get_lpad
 from gaspy.tasks import run_tasks
-from gaspy_feedback import BestLowCoverageSitesWithGaussianNoise
-
+from gaspy_feedback.core import BestChemistrySitesWithGaussianNoise
 
 # Set defaults for arguments and create command-line parser for them
 parser = argparse.ArgumentParser()
 parser.add_argument('--user', type=str, default=os.getlogin())
 parser.add_argument('--target_queue_size', type=int, default=300)
 parser.add_argument('--model', type=str, default='model0')
-parser.add_argument('--stdev', type=float, default=0.1)
+parser.add_argument('--stdev', type=float, default=0.2)
 
 args = parser.parse_args()
 user = args.user
@@ -65,16 +64,15 @@ def build_rockets():
     Try to build as many rockets as are needed to hit our target queue size.
     '''
     num_rockets_to_build = target_queue_size - get_num_rockets()
-    rockets_per_task = int(num_rockets_to_build / len(adsorbates_and_targets))
 
-    if rockets_per_task > 0:
+    if num_rockets_to_build > 0:
 
-        tasks = BestChemistrySitesWithGaussianNoise(adsorbates=['OH','O','OOH'],
+        task = BestChemistrySitesWithGaussianNoise(adsorbates=['OH','O','OOH'],
                                     chemistry_tag='orr_onset_potential_4e',
                                      energy_target=1.23, #max ORR potential
                                      model_tag=[model],
                                      stdev=stdev,
-                                    max_rocks = rockets_per_task)
+                                    max_rockets = num_rockets_to_build)
         
         tasks=[task]
 
