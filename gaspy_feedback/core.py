@@ -11,7 +11,7 @@ import numpy as np
 from scipy.stats import norm
 import luigi
 from gaspy import defaults
-from gaspy.gasdb import get_low_coverage_docs_by_surface
+from gaspy.gasdb import get_low_coverage_docs
 from gaspy.tasks.core import FingerprintRelaxedAdslab
 from gaspy.tasks.submit_calculations.adsorption_calculations import _make_adslab_parameters_from_doc
 
@@ -70,7 +70,7 @@ class BestLowCoverageSitesWithGaussianNoise(luigi.WrapperTask):
 
     def requires(self):
         '''
-        We use `get_low_coverage_docs_by_surface` to get a dictionary whose keys
+        We use `get_low_coverage_docs` to get a dictionary whose keys
         represent various surfaces and whose values are docs---i.e., dictionaries
         that contain various information about the adsorption site that we predict to
         have the lowest adsorption energy (as per both DFT data and the surrogate model).
@@ -82,7 +82,7 @@ class BestLowCoverageSitesWithGaussianNoise(luigi.WrapperTask):
         the documents.
         '''
         # Get the documents and their energies
-        docs_by_surface = get_low_coverage_docs_by_surface(self.adsorbates, self.model_tag)
+        docs_by_surface = get_low_coverage_docs(self.adsorbates, self.model_tag)
         docs = [doc for doc in docs_by_surface.values() if not doc['DFT_calculated']]
         energies = [doc['energy'] for doc in docs]
 
