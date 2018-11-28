@@ -11,7 +11,7 @@ import numpy as np
 from scipy.stats import norm
 import luigi
 from gaspy import defaults
-from gaspy.gasdb import get_low_coverage_docs, get_catalog_docs_with_orr_potentials
+from gaspy.gasdb import get_low_coverage_docs, get_catalog_docs_with_predictions
 from gaspy.tasks.core import FingerprintRelaxedAdslab
 from gaspy.tasks.submit_calculations.adsorption_calculations import _make_adslab_parameters_from_doc
 import copy
@@ -173,7 +173,7 @@ class BestORRSitesWithGaussianNoise(luigi.WrapperTask):
         the documents.
         '''
         # Get the documents and their onset potentials
-        all_docs = get_catalog_docs_with_orr_potentials(self.adsorbates, self.model_tag)
+        all_docs = get_catalog_docs_with_predictions()
 
         # Filter to only get reasonably-sized adslabs
         all_docs = [doc for doc in all_docs if doc['natoms'] < defaults.MAX_NUM_ADSLAB_ATOMS]
