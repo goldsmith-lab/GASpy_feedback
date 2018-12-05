@@ -10,4 +10,4 @@ gaspy_path="$(dirname "$gaspy_feedback_path")"
 gaspy_mounting_config="$gaspy_path:/home/GASpy"
 
 # Now open the container
-shifter --image=ulissigroup/gaspy_feedback:0.20 --volume=$gaspy_mounting_config bash -i
+shifter --image=ulissigroup/gaspy_feedback:latest --volume=$gaspy_mounting_config --volume=$HOME/.ssh:/home/.ssh bash -i
