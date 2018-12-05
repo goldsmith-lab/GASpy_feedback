@@ -3,5 +3,6 @@
 *.out
 *.log
 *.swp
+*.pytest_cache
 .ipynb_checkpoints/
 scripts/control_variables.txt
