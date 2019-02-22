@@ -18,6 +18,29 @@ from gaspy.gasdb import (get_low_coverage_docs,
                          get_unsimulated_catalog_docs,
                          _get_attempted_adsorption_docs)
 from gaspy.tasks.metadata_calculators import CalculateAdsorptionEnergy
+from gaspy.fireworks_helper_scripts import get_launchpad
+
+
+def get_n_jobs_to_submit(user_name, quota=300):
+    '''
+    This function helps you figure out how many jobs you should submit by
+    calculating the difference between your quota of jobs in queue and the
+    number of jobs you actually have in queue.
+
+    Args:
+        user_name   String indicating your user name in FireWorks
+        quota       Integer indicating the number of jobs you want to
+                    have running/ready in FireWorks at a given time.
+    Returns:
+        n_jobs_to_submit    The integer difference between the number of jobs
+                            you have running and the number you want running.
+    '''
+    lpad = get_launchpad()
+    query = {'name.user': user_name, 'state': {'$in': ['READY', 'RUNNING']}}
+    n_jobs_running = lpad.fireworks.find(query).count()
+
+    n_jobs_to_submit = quota - n_jobs_running
+    return n_jobs_to_submit
 
 
 def randomly(adsorbate, n_calcs=50, max_atoms=80, vasp_settings=None):
