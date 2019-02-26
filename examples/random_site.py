@@ -35,7 +35,7 @@ parser.add_argument('--quota', type=int, default=300)
 args = parser.parse_args()
 user = args.user
 adsorbate = args.adsorbate
-quota = args.target_queue_size
+quota = args.quota
 
 
 def build_rockets():
