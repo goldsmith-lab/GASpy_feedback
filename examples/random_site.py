@@ -48,6 +48,6 @@ def build_rockets():
 # Run continuously with a 1 hour pause if we are actually above quota.
 while True:
     if get_n_jobs_to_submit(user, quota) > 0:
-        time.sleep(3600)
-    else:
         build_rockets()
+    else:
+        time.sleep(3600)
