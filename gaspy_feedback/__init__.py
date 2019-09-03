@@ -10,5 +10,5 @@ __email__ = 'ktran@andrew.cmu.edu'
 
 from .core import (get_n_jobs_to_submit,
                    randomly,
-                   low_cov_ads_energies_with_guassian_noise,
+                   low_cov_ads_energies_with_gaussian_noise,
                    orr_sites_with_gaussian_noise)
