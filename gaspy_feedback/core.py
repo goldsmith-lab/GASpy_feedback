@@ -92,7 +92,7 @@ def randomly(adsorbate, n_calcs=50, max_atoms=80, vasp_settings=None):
     return tasks
 
 
-def low_cov_ads_energies_with_guassian_noise(adsorbate, energy_target, stdev,
+def low_cov_ads_energies_with_gaussian_noise(adsorbate, energy_target, stdev,
                                              n_calcs=50,
                                              model_tag=defaults.model(),
                                              max_atoms=80,
