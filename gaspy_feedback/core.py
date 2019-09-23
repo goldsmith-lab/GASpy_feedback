@@ -139,7 +139,7 @@ def low_cov_ads_energies_with_gaussian_noise(adsorbate, energy_target, stdev,
     # Get the documents for the low-coverage sites while taking out sites that
     # are too big
     low_coverage_docs = [doc for doc in get_low_coverage_docs(adsorbate, model_tag)
-                         if (doc['DFT_calulated'] is False and
+                         if (doc['DFT_calculated'] is False and
                              doc['natoms'] <= max_atoms)]
 
     # Some calculations/sites result in an adsorbate moving so far that the
