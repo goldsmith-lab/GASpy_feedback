@@ -181,7 +181,7 @@ def __fingerprint_doc(doc):
                    tuple(doc['miller']),
                    doc['shift'],
                    doc['top'],
-                   doc['adsorption_site'],
+                   tuple(doc['adsorption_site']),
                    doc['coordination'],
                    tuple(doc['neighborcoord']))
     return fingerprint
